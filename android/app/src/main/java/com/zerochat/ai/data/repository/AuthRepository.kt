@@ -1,6 +1,7 @@
 package com.zerochat.ai.data.repository
 
 import com.google.gson.Gson
+import com.zerochat.ai.data.api.ApiClient
 import com.zerochat.ai.data.api.ApiResult
 import com.zerochat.ai.data.api.ZeroChatApiService
 import com.zerochat.ai.data.local.TokenManager
@@ -39,7 +40,7 @@ class AuthRepository(
                     ApiResult.Error(parseError(res), res.code())
                 }
             } catch (e: Exception) {
-                ApiResult.Error(e.localizedMessage ?: "Failed to connect to authentication server")
+                ApiResult.Error(ApiClient.formatNetworkError(e))
             }
         }
 
@@ -53,7 +54,7 @@ class AuthRepository(
                     ApiResult.Error(parseError(res), res.code())
                 }
             } catch (e: Exception) {
-                ApiResult.Error(e.localizedMessage ?: "Verification request failed")
+                ApiResult.Error(ApiClient.formatNetworkError(e))
             }
         }
 
@@ -83,7 +84,7 @@ class AuthRepository(
                 ApiResult.Error(parseError(res), res.code())
             }
         } catch (e: Exception) {
-            ApiResult.Error(e.localizedMessage ?: "Account registration failed")
+            ApiResult.Error(ApiClient.formatNetworkError(e))
         }
     }
 
@@ -100,7 +101,7 @@ class AuthRepository(
                     ApiResult.Error(parseError(res), res.code())
                 }
             } catch (e: Exception) {
-                ApiResult.Error(e.localizedMessage ?: "Login failed. Check server connection.")
+                ApiResult.Error(ApiClient.formatNetworkError(e))
             }
         }
 

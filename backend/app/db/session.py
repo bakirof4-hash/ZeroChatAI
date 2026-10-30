@@ -10,6 +10,7 @@ if "sqlite" in db_url:
 elif "asyncpg" in db_url:
     # Critical for Supabase connection poolers (pgbouncer / Supavisor on port 6543)
     connect_args["statement_cache_size"] = 0
+    connect_args["timeout"] = 5
 
 engine = create_async_engine(
     db_url,

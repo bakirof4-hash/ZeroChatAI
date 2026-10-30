@@ -1,3 +1,7 @@
+import os
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["FOUNDER_AUTO_PROVISION"] = "false"
+
 import asyncio
 import pytest
 import pytest_asyncio
@@ -21,6 +25,23 @@ TestingSessionLocal = async_sessionmaker(
     class_=AsyncSession,
     expire_on_commit=False
 )
+
+# Patch app session and engine for testing isolation
+import app.db.session as session_module
+session_module.engine = test_engine
+session_module.AsyncSessionLocal = TestingSessionLocal
+import app.main as main_module
+main_module.engine = test_engine
+main_module.AsyncSessionLocal = TestingSessionLocal
+from contextlib import asynccontextmanager
+@asynccontextmanager
+async def test_lifespan(app):
+    yield
+app.lifespan_context = test_lifespan
+app.router.lifespan_context = test_lifespan
+
+
+
 
 
 @pytest_asyncio.fixture(scope="function")

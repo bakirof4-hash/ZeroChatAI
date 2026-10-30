@@ -23,9 +23,12 @@ logger = logging.getLogger("zerochat.main")
 async def lifespan(app: FastAPI):
     # 1. Initialize database tables
     logger.info("Initializing database schema...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database schema initialized.")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database schema initialized.")
+    except Exception as e:
+        logger.warning("Database schema initialization skipped or failed: %s", e)
 
     # 2. Check SMTP status
     if EmailService.is_configured():
@@ -38,25 +41,31 @@ async def lifespan(app: FastAPI):
 
     # 3. Secure Founder Account Provisioning
     if settings.FOUNDER_AUTO_PROVISION:
-        async with AsyncSessionLocal() as db:
-            founder_pwd = settings.FOUNDER_PASSWORD or "Founder@ZeroChat2026!"
-            founder = await AdminService.provision_founder_account(
-                db=db,
-                email=settings.FOUNDER_EMAIL,
-                password=founder_pwd,
-                username=settings.FOUNDER_USERNAME
-            )
-            logger.info(
-                "Founder account provisioned: %s (Role: %s, Verified Badge: %s)",
-                founder.email,
-                founder.role,
-                founder.is_verified_badge
-            )
+        try:
+            async with AsyncSessionLocal() as db:
+                founder_pwd = settings.FOUNDER_PASSWORD or "Founder@ZeroChat2026!"
+                founder = await AdminService.provision_founder_account(
+                    db=db,
+                    email=settings.FOUNDER_EMAIL,
+                    password=founder_pwd,
+                    username=settings.FOUNDER_USERNAME
+                )
+                logger.info(
+                    "Founder account provisioned: %s (Role: %s, Verified Badge: %s)",
+                    founder.email,
+                    founder.role,
+                    founder.is_verified_badge
+                )
+        except Exception as e:
+            logger.warning("Founder account auto-provisioning skipped: %s", e)
 
     yield
 
     # Teardown
-    await engine.dispose()
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
     logger.info("Backend application shutdown complete.")
 
 

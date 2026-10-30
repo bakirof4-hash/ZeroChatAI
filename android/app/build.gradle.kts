@@ -29,10 +29,22 @@ android {
         }
     }
 
+    // Resolve backend base URLs from Gradle properties (-Pzerochat.backend.url),
+    // environment variables (ZEROCHAT_BACKEND_URL), or production HTTPS default.
+    val prodBackendUrl = (project.findProperty("zerochat.backend.url") as? String)
+        ?: System.getenv("ZEROCHAT_BACKEND_URL")
+        ?: "https://api.zerochat.ai/"
+
+    val emulatorBackendUrl = (project.findProperty("zerochat.emulator.url") as? String)
+        ?: System.getenv("ZEROCHAT_EMULATOR_URL")
+        ?: "http://10.0.2.2:8000/"
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "BASE_URL", "\"https://api.zerochat.ai/\"")
+            buildConfigField("String", "BASE_URL", "\"$prodBackendUrl\"")
+            buildConfigField("String", "PRODUCTION_URL", "\"$prodBackendUrl\"")
+            buildConfigField("String", "EMULATOR_URL", "\"$emulatorBackendUrl\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -41,7 +53,11 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            // Debug build defaults to production HTTPS (or custom build-time override)
+            // It NEVER hardcodes 10.0.2.2 for physical Android devices!
+            buildConfigField("String", "BASE_URL", "\"$prodBackendUrl\"")
+            buildConfigField("String", "PRODUCTION_URL", "\"$prodBackendUrl\"")
+            buildConfigField("String", "EMULATOR_URL", "\"$emulatorBackendUrl\"")
             signingConfig = signingConfigs.getByName("debug")
         }
     }

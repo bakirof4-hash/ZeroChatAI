@@ -59,4 +59,18 @@ class FeaturesValidationTest {
         assertEquals(2, inspection.findings.size)
         assertTrue(inspection.disclaimer.contains("Heuristic static analysis"))
     }
+
+    @Test
+    fun testNetworkErrorFormatting() {
+        val connectEx = java.net.ConnectException("Failed to connect to /10.0.2.2:8000")
+        val formatted = com.zerochat.ai.data.api.ApiClient.formatNetworkError(connectEx)
+        assertTrue(
+            "Formatted error should guide user regarding 10.0.2.2 on physical device",
+            formatted.contains("10.0.2.2") || formatted.contains("backend")
+        )
+
+        val timeoutEx = java.net.SocketTimeoutException("timeout")
+        val timeoutFormatted = com.zerochat.ai.data.api.ApiClient.formatNetworkError(timeoutEx)
+        assertTrue("Formatted error should mention timeout", timeoutFormatted.contains("timed out"))
+    }
 }

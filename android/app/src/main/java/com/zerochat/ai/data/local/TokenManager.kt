@@ -40,6 +40,10 @@ class TokenManager(context: Context) {
 
     fun getServerUrl(): String? = prefs.getString(KEY_SERVER_URL, null)
 
+    fun clearServerUrl() {
+        prefs.edit().remove(KEY_SERVER_URL).apply()
+    }
+
     fun saveAuthTokens(accessToken: String, sessionToken: String) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)

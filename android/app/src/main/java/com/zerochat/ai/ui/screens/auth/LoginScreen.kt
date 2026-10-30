@@ -8,14 +8,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.zerochat.ai.ui.components.GlassCard
 import com.zerochat.ai.ui.components.NeonButton
 import com.zerochat.ai.ui.components.NeonTextField
+import com.zerochat.ai.ui.components.ServerConfigDialog
 import com.zerochat.ai.ui.theme.*
 
 @Composable
@@ -38,6 +44,7 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showServerDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -45,6 +52,27 @@ fun LoginScreen(
             .background(CyberDarkBackground)
             .padding(24.dp)
     ) {
+        // Server Configuration Button for testing & network switching
+        IconButton(
+            onClick = { showServerDialog = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Dns,
+                contentDescription = "Server Settings",
+                tint = NeonBlue
+            )
+        }
+
+        if (showServerDialog) {
+            ServerConfigDialog(
+                onDismiss = { showServerDialog = false },
+                onUrlUpdated = { }
+            )
+        }
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
