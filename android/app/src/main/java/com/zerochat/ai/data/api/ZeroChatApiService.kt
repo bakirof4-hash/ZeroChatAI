@@ -161,4 +161,8 @@ interface ZeroChatApiService {
 
     @GET("api/v1/security/history")
     suspend fun getInspectionHistory(): Response<List<FileInspectionResponse>>
+
+    // --- In-App Updates ---
+    @GET("api/v1/app/version/latest")
+    suspend fun getLatestVersion(): Response<AppVersionResponse>
 }

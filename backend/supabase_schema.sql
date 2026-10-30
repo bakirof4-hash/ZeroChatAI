@@ -160,6 +160,25 @@ CREATE TABLE IF NOT EXISTS public.security_events (
 
 CREATE INDEX IF NOT EXISTS idx_security_events_timestamp ON public.security_events(timestamp);
 
+-- In-App Version Releases & Updates
+CREATE TABLE IF NOT EXISTS public.app_versions (
+    id SERIAL PRIMARY KEY,
+    version_code INT UNIQUE NOT NULL,
+    version_name VARCHAR(50) NOT NULL,
+    release_notes TEXT NOT NULL,
+    apk_url VARCHAR(500) NOT NULL,
+    apk_sha256 VARCHAR(64) NOT NULL,
+    apk_size INT NOT NULL,
+    min_supported_version_code INT DEFAULT 1 NOT NULL,
+    is_mandatory BOOLEAN DEFAULT FALSE NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    published_by INT REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_versions_code ON public.app_versions(version_code);
+CREATE INDEX IF NOT EXISTS idx_app_versions_active ON public.app_versions(is_active);
+
 -- ------------------------------------------------------------------------------
 -- 3. Row Level Security (RLS) Configuration
 -- ------------------------------------------------------------------------------
@@ -174,6 +193,7 @@ ALTER TABLE public.qr_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.file_inspections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_versions ENABLE ROW LEVEL SECURITY;
 
 -- 1) Service Role Superuser Bypass (Backend API gateway)
 -- Supabase service_role has full access for backend orchestration
@@ -186,10 +206,14 @@ CREATE POLICY "service_role_all_contacts" ON public.qr_contacts FOR ALL TO servi
 CREATE POLICY "service_role_all_inspections" ON public.file_inspections FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_role_all_audit" ON public.audit_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_role_all_security" ON public.security_events FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all_versions" ON public.app_versions FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- 2) Client & Authenticated User Policies
 -- Users: public profiles are readable; users can only update themselves
 CREATE POLICY "users_read_public_profiles" ON public.users FOR SELECT TO authenticated, anon USING (true);
+
+-- Versions: Active versions are readable by everyone
+CREATE POLICY "versions_read_active" ON public.app_versions FOR SELECT TO authenticated, anon USING (is_active = true);
 
 -- Chat Messages: Public messages are readable by all; direct messages only by participants
 CREATE POLICY "messages_read_public" ON public.chat_messages FOR SELECT TO authenticated

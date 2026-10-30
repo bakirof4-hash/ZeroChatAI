@@ -7,6 +7,7 @@ from app.models.message import ChatMessage
 from app.models.block_list import UserBlock
 from app.models.qr_contact import QrContact
 from app.models.file_inspection import FileInspection
+from app.models.app_version import AppVersion
 
 __all__ = [
     "User",
@@ -20,4 +21,5 @@ __all__ = [
     "UserBlock",
     "QrContact",
     "FileInspection",
+    "AppVersion",
 ]

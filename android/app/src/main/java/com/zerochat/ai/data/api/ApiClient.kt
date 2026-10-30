@@ -1,6 +1,7 @@
 package com.zerochat.ai.data.api
 
 import android.content.Context
+import com.zerochat.ai.BuildConfig
 import com.zerochat.ai.data.local.TokenManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -10,25 +11,30 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    // Default development endpoint pointing to host machine from Android Emulator
-    // Can be easily switched to production HTTPS endpoint
-    private var baseUrl: String = "http://10.0.2.2:8000/"
+    // Configured with production HTTPS endpoint in release, and local dev fallback in debug
+    private var baseUrl: String = BuildConfig.BASE_URL
 
     private var apiService: ZeroChatApiService? = null
 
     fun setBaseUrl(url: String, context: Context) {
         baseUrl = if (url.endsWith("/")) url else "$url/"
+        TokenManager(context).saveServerUrl(baseUrl)
         apiService = null // Force re-creation
     }
 
     fun getBaseUrl(): String = baseUrl
 
     fun getService(context: Context): ZeroChatApiService {
-        if (apiService == null) {
-            val tokenManager = TokenManager(context)
+        val tokenManager = TokenManager(context)
+        val savedUrl = tokenManager.getServerUrl()
+        if (!savedUrl.isNullOrBlank() && savedUrl != baseUrl) {
+            baseUrl = savedUrl
+            apiService = null
+        }
 
+        if (apiService == null) {
             val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
+                level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
             }
 
             val okHttpClient = OkHttpClient.Builder()

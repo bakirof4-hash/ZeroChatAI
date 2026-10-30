@@ -6,6 +6,7 @@ import com.zerochat.ai.data.local.TokenManager
 import com.zerochat.ai.data.repository.AdminRepository
 import com.zerochat.ai.data.repository.AuthRepository
 import com.zerochat.ai.data.repository.ChatRepository
+import com.zerochat.ai.data.repository.UpdateRepository
 
 class ZeroChatApplication : Application() {
 
@@ -21,6 +22,9 @@ class ZeroChatApplication : Application() {
     lateinit var chatRepository: ChatRepository
         private set
 
+    lateinit var updateRepository: UpdateRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
 
@@ -30,6 +34,7 @@ class ZeroChatApplication : Application() {
         authRepository = AuthRepository(apiService, tokenManager)
         adminRepository = AdminRepository(apiService)
         chatRepository = ChatRepository(apiService)
+        updateRepository = UpdateRepository(apiService)
     }
 }
 

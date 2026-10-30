@@ -31,7 +31,14 @@ class TokenManager(context: Context) {
         private const val KEY_ACCESS_TOKEN = "jwt_access_token"
         private const val KEY_SESSION_TOKEN = "auth_session_token"
         private const val KEY_CACHED_USER = "cached_user_json"
+        private const val KEY_SERVER_URL = "custom_server_base_url"
     }
+
+    fun saveServerUrl(url: String) {
+        prefs.edit().putString(KEY_SERVER_URL, url).apply()
+    }
+
+    fun getServerUrl(): String? = prefs.getString(KEY_SERVER_URL, null)
 
     fun saveAuthTokens(accessToken: String, sessionToken: String) {
         prefs.edit()
