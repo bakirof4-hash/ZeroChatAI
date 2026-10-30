@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.db.base import Base
+from app.db.migrations import run_idempotent_migrations
 from app.db.session import AsyncSessionLocal, engine
 from app.services.admin_service import AdminService
 from app.services.email_service import EmailService
@@ -21,14 +22,15 @@ logger = logging.getLogger("zerochat.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Initialize database tables
-    logger.info("Initializing database schema...")
+    # 1. Initialize database tables and apply idempotent migrations
+    logger.info("Initializing database schema and running migrations...")
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database schema initialized.")
+            await conn.run_sync(run_idempotent_migrations)
+        logger.info("Database schema initialized and migrated successfully.")
     except Exception as e:
-        logger.warning("Database schema initialization skipped or failed: %s", e)
+        logger.warning("Database schema initialization/migration warning: %s", e)
 
     # 2. Check SMTP status
     if EmailService.is_configured():
