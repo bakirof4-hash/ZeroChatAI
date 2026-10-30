@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="neon_blue">#00D2FF</color>
+    <color name="electric_blue">#0077FE</color>
+    <color name="cyber_dark">#0A0E17</color>
+    <color name="cyber_card">#131B2A</color>
+    <color name="cyber_border">#1E293B</color>
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="founder_gold">#FFD700</color>
+</resources>
+

@@ -1,0 +1,45 @@
+package com.zerochat.ai.util
+
+import android.graphics.Bitmap
+import android.graphics.Color
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+
+object QrCodeGenerator {
+
+    fun generateQrBitmap(
+        content: String,
+        width: Int = 512,
+        height: Int = 512,
+        darkColor: Int = Color.BLACK,
+        lightColor: Int = Color.WHITE
+    ): Bitmap? {
+        if (content.isBlank()) return null
+        return try {
+            val hints = hashMapOf<EncodeHintType, Any>().apply {
+                put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H)
+                put(EncodeHintType.MARGIN, 2)
+            }
+
+            val bitMatrix = QRCodeWriter().encode(
+                content,
+                BarcodeFormat.QR_CODE,
+                width,
+                height,
+                hints
+            )
+
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) darkColor else lightColor)
+                }
+            }
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
+    }
+}

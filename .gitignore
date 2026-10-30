@@ -1,0 +1,51 @@
+# Built application packages & outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Gradle build cache & intermediate files
+.gradle/
+build/
+**/build/
+android/app/build/
+android/.gradle/
+
+# Android Studio / IntelliJ / Eclipse / VS Code
+.idea/
+*.iml
+.vscode/
+local.properties
+.cxx/
+captures/
+.externalNativeBuild/
+
+# Python virtual environments & bytecode
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+*.sqlite3
+backend/zerochat.db
+backend/zerochat.db-journal
+
+# Uploads directory
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Environment & local credentials
+.env
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini

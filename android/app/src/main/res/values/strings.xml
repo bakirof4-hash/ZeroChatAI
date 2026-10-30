@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">ZeroChat AI</string>
+    <string name="login_title">Welcome Back</string>
+    <string name="login_subtitle">Sign in to your secure encrypted workspace</string>
+    <string name="founder_badge_label">Founder &#8226; Super Admin</string>
+    <string name="gmail_security_notice">Never enter your Gmail password. ZeroChat AI only uses one-time 6-digit verification codes sent via SMTP.</string>
+</resources>
