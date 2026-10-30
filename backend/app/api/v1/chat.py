@@ -4,22 +4,66 @@ import re
 import time
 from typing import List, Optional
 import aiofiles
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
+from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.block_list import UserBlock
 from app.models.message import ChatMessage
 from app.models.user import User
 from app.schemas.user import UserResponse
 from app.services.file_analyzer import FileSecurityAnalyzer
+from app.services.supabase_storage import SupabaseStorageService
 
 router = APIRouter(prefix="/chat", tags=["Chat & Messaging"])
 
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+class ConnectionManager:
+    """Manages active WebSocket connections for instant real-time messaging."""
+    def __init__(self):
+        self.active_user_connections: dict[int, list[WebSocket]] = {}
+        self.public_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket, user_id: Optional[int] = None):
+        await websocket.accept()
+        self.public_connections.append(websocket)
+        if user_id:
+            if user_id not in self.active_user_connections:
+                self.active_user_connections[user_id] = []
+            self.active_user_connections[user_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, user_id: Optional[int] = None):
+        if websocket in self.public_connections:
+            self.public_connections.remove(websocket)
+        if user_id and user_id in self.active_user_connections:
+            if websocket in self.active_user_connections[user_id]:
+                self.active_user_connections[user_id].remove(websocket)
+            if not self.active_user_connections[user_id]:
+                del self.active_user_connections[user_id]
+
+    async def broadcast_public(self, data: dict):
+        for conn in list(self.public_connections):
+            try:
+                await conn.send_json({"type": "public_message", "data": data})
+            except Exception:
+                pass
+
+    async def send_direct(self, data: dict, sender_id: int, recipient_id: int):
+        for uid in (sender_id, recipient_id):
+            for conn in list(self.active_user_connections.get(uid, [])):
+                try:
+                    await conn.send_json({"type": "direct_message", "data": data})
+                except Exception:
+                    pass
+
+
+connection_manager = ConnectionManager()
 
 
 class ChatMessageResponse(BaseModel):
@@ -151,7 +195,7 @@ async def post_public_message(
     await db.commit()
     await db.refresh(msg)
 
-    return ChatMessageResponse(
+    response_msg = ChatMessageResponse(
         id=msg.id,
         sender_id=current_user.id,
         sender_username=current_user.username,
@@ -168,6 +212,8 @@ async def post_public_message(
         timestamp=msg.created_at,
         is_ai=False
     )
+    await connection_manager.broadcast_public(response_msg.model_dump(mode="json"))
+    return response_msg
 
 
 @router.get("/direct/{target_user_id}", response_model=List[ChatMessageResponse])
@@ -311,7 +357,7 @@ async def send_direct_message(
     await db.commit()
     await db.refresh(msg)
 
-    return ChatMessageResponse(
+    response_msg = ChatMessageResponse(
         id=msg.id,
         sender_id=current_user.id,
         sender_username=current_user.username,
@@ -328,6 +374,8 @@ async def send_direct_message(
         timestamp=msg.created_at,
         is_ai=False
     )
+    await connection_manager.send_direct(response_msg.model_dump(mode="json"), sender_id=current_user.id, recipient_id=target_user_id)
+    return response_msg
 
 
 @router.post("/upload", response_model=AttachmentUploadResponse)
@@ -360,13 +408,15 @@ async def upload_attachment(
     # Perform static offline inspection
     inspection = FileSecurityAnalyzer.inspect(safe_name, content)
 
-    # Save to disk
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-    async with aiofiles.open(file_path, "wb") as f:
-        await f.write(content)
+    # Secure storage (Supabase Storage with local fallback)
+    attachment_url = await SupabaseStorageService.upload_file(
+        filename=filename,
+        content=content,
+        content_type=file.content_type or "application/octet-stream"
+    )
 
     return AttachmentUploadResponse(
-        attachment_url=f"/uploads/{unique_filename}",
+        attachment_url=attachment_url,
         attachment_name=filename,
         attachment_type=file.content_type or "application/octet-stream",
         attachment_size=len(content),
@@ -398,3 +448,33 @@ async def search_users(
     res = await db.execute(stmt)
     users = res.scalars().all()
     return [UserResponse.model_validate(u) for u in users]
+
+
+@router.websocket("/ws")
+async def chat_websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None)
+):
+    """
+    WebSocket endpoint for real-time bi-directional chat streaming.
+    Pass ?token=<jwt_token> for authenticated direct messaging streams.
+    """
+    user_id = None
+    if token:
+        payload = decode_access_token(token)
+        if payload and "sub" in payload:
+            try:
+                user_id = int(payload["sub"])
+            except ValueError:
+                pass
+
+    await connection_manager.connect(websocket, user_id=user_id)
+    try:
+        while True:
+            text = await websocket.receive_text()
+            if text == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket, user_id=user_id)
+    except Exception:
+        connection_manager.disconnect(websocket, user_id=user_id)

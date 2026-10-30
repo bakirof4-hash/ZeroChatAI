@@ -2,12 +2,20 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.core.config import settings
 
+db_url = settings.async_database_url
+
+connect_args = {}
+if "sqlite" in db_url:
+    connect_args["check_same_thread"] = False
+elif "asyncpg" in db_url:
+    # Critical for Supabase connection poolers (pgbouncer / Supavisor on port 6543)
+    connect_args["statement_cache_size"] = 0
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    db_url,
     echo=False,
     future=True,
-    # SQLite requires check_same_thread=False
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    connect_args=connect_args
 )
 
 AsyncSessionLocal = async_sessionmaker(

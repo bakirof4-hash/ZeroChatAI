@@ -108,6 +108,19 @@ interface ZeroChatApiService {
     @GET("api/v1/users/blocked")
     suspend fun getBlockedUsers(): Response<List<UserDto>>
 
+    @POST("api/v1/users/contacts")
+    suspend fun saveQrContact(
+        @Body request: SaveContactRequest
+    ): Response<QrContactDto>
+
+    @GET("api/v1/users/contacts")
+    suspend fun getQrContacts(): Response<List<QrContactDto>>
+
+    @DELETE("api/v1/users/contacts/{contact_user_id}")
+    suspend fun deleteQrContact(
+        @Path("contact_user_id") contactUserId: Int
+    ): Response<GenericResponse>
+
     // --- Chat & Messaging ---
     @GET("api/v1/chat/messages")
     suspend fun getChatMessages(): Response<List<ChatMessageDto>>
@@ -145,4 +158,7 @@ interface ZeroChatApiService {
     suspend fun inspectFile(
         @Part file: MultipartBody.Part
     ): Response<FileInspectionResponse>
+
+    @GET("api/v1/security/history")
+    suspend fun getInspectionHistory(): Response<List<FileInspectionResponse>>
 }

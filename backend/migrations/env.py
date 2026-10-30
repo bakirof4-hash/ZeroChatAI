@@ -23,8 +23,8 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Set sqlalchemy.url from our settings
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set sqlalchemy.url from our settings (normalized for asyncpg)
+config.set_main_option("sqlalchemy.url", settings.async_database_url)
 
 
 # other values from the config, defined by the needs of env.py,

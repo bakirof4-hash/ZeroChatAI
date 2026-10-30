@@ -93,3 +93,11 @@ async def test_security_inspect_endpoint(client, founder_user):
     assert data["threat_level"] in ["SUSPICIOUS", "HIGH", "CRITICAL"]
     assert len(data["findings"]) > 0
     assert "disclaimer" in data
+    assert data["id"] is not None
+
+    # Verify history retrieval
+    hist_res = await client.get("/api/v1/security/history", headers=headers)
+    assert hist_res.status_code == 200
+    history = hist_res.json()
+    assert len(history) >= 1
+    assert history[0]["filename"] == "malicious_test.apk"

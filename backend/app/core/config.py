@@ -19,6 +19,26 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./zerochat.db"
 
+    # Supabase Configuration
+    # Store credentials ONLY in backend/.env (never in frontend/Android APK)
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_ANON_KEY: Optional[str] = None
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = None
+    SUPABASE_STORAGE_BUCKET: str = "zerochat-attachments"
+
+    @property
+    def async_database_url(self) -> str:
+        """
+        Normalizes postgres:// and postgresql:// to postgresql+asyncpg://
+        for seamless Supabase PostgreSQL connection compatibility with SQLAlchemy async.
+        """
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
     # Security & JWT
     SECRET_KEY: str = "zerochat-insecure-dev-key-change-in-production-minimum-32-chars-long"
     ALGORITHM: str = "HS256"

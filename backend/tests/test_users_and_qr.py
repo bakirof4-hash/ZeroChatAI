@@ -138,3 +138,62 @@ async def test_user_blocking(client, db_session, founder_user):
         headers=headers_bob
     )
     assert bob_scan_ok.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_qr_contact_saving_and_deletion(client, db_session, founder_user):
+    # Create contact target user
+    carol = User(
+        email="carol@test.com",
+        username="carol_user",
+        hashed_password="hash",
+        role=UserRole.USER.value,
+        is_founder=False,
+        is_verified_badge=False,
+        is_active=True,
+        email_verified=True
+    )
+    db_session.add(carol)
+    await db_session.commit()
+    await db_session.refresh(carol)
+
+    founder_token = create_access_token({"sub": str(founder_user.id), "email": founder_user.email, "role": founder_user.role})
+    headers_founder = {"Authorization": f"Bearer {founder_token}"}
+
+    # 1. Save contact
+    save_res = await client.post(
+        "/api/v1/users/contacts",
+        json={
+            "contact_user_id": carol.id,
+            "qr_payload": f"zerochat://user?u={carol.username}&uid={carol.id}",
+            "nickname": "Carol Colleague"
+        },
+        headers=headers_founder
+    )
+    assert save_res.status_code == 200
+    contact_data = save_res.json()
+    assert contact_data["contact_user"]["username"] == "carol_user"
+    assert contact_data["nickname"] == "Carol Colleague"
+
+    # 2. Cannot add self
+    self_res = await client.post(
+        "/api/v1/users/contacts",
+        json={"contact_user_id": founder_user.id},
+        headers=headers_founder
+    )
+    assert self_res.status_code == 400
+
+    # 3. List contacts
+    list_res = await client.get("/api/v1/users/contacts", headers=headers_founder)
+    assert list_res.status_code == 200
+    assert len(list_res.json()) == 1
+    assert list_res.json()[0]["contact_user"]["id"] == carol.id
+
+    # 4. Delete contact
+    del_res = await client.delete(f"/api/v1/users/contacts/{carol.id}", headers=headers_founder)
+    assert del_res.status_code == 200
+
+    # 5. Verify list is empty
+    list_after = await client.get("/api/v1/users/contacts", headers=headers_founder)
+    assert list_after.status_code == 200
+    assert len(list_after.json()) == 0

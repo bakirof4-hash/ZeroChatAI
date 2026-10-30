@@ -5,6 +5,8 @@ from app.models.audit_log import AuditLog
 from app.models.security_event import SecurityEvent
 from app.models.message import ChatMessage
 from app.models.block_list import UserBlock
+from app.models.qr_contact import QrContact
+from app.models.file_inspection import FileInspection
 
 __all__ = [
     "User",
@@ -15,5 +17,7 @@ __all__ = [
     "AuditLog",
     "SecurityEvent",
     "ChatMessage",
-    "UserBlock"
+    "UserBlock",
+    "QrContact",
+    "FileInspection",
 ]

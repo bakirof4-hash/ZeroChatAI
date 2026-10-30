@@ -8,6 +8,7 @@ data class InspectionFinding(
 )
 
 data class FileInspectionResponse(
+    @SerializedName("id") val id: Int? = null,
     @SerializedName("filename") val filename: String,
     @SerializedName("file_type") val fileType: String,
     @SerializedName("file_size") val fileSize: Long,
@@ -15,5 +16,6 @@ data class FileInspectionResponse(
     @SerializedName("threat_level") val threatLevel: String,
     @SerializedName("risk_score") val riskScore: Int,
     @SerializedName("findings") val findings: List<InspectionFinding>,
-    @SerializedName("disclaimer") val disclaimer: String
+    @SerializedName("disclaimer") val disclaimer: String,
+    @SerializedName("created_at") val createdAt: String? = null
 )

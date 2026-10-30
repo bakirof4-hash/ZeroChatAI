@@ -9,6 +9,7 @@ from app.db.base import Base
 from app.db.session import AsyncSessionLocal, engine
 from app.services.admin_service import AdminService
 from app.services.email_service import EmailService
+from app.services.supabase_storage import SupabaseStorageService
 
 # Logging configuration
 logging.basicConfig(
@@ -78,10 +79,14 @@ app.add_middleware(
 
 @app.get("/health", tags=["Health"])
 async def health_check():
+    db_type = "supabase_postgresql" if ("supabase" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL) else "sqlite_local"
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "database_backend": db_type,
+        "supabase_configured": bool(settings.SUPABASE_URL),
+        "supabase_storage_configured": SupabaseStorageService.is_configured(),
         "smtp_configured": EmailService.is_configured(),
         "founder_email": settings.FOUNDER_EMAIL
     }

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.block_list import UserBlock
+from app.models.qr_contact import QrContact
 from app.models.user import User
 from app.schemas.user import UserResponse
 
@@ -32,6 +33,20 @@ class QrScanRequest(BaseModel):
 class QrScanResponse(BaseModel):
     user: UserResponse
     is_blocked_by_me: bool
+
+
+class SaveContactRequest(BaseModel):
+    contact_user_id: int
+    qr_payload: Optional[str] = None
+    nickname: Optional[str] = None
+
+
+class QrContactResponse(BaseModel):
+    id: int
+    user_id: int
+    contact_user: UserResponse
+    qr_payload: Optional[str] = None
+    nickname: Optional[str] = None
 
 
 @router.get("/me/qr", response_model=QrCodeResponse)
@@ -242,3 +257,108 @@ async def list_blocked_users(
     res = await db.execute(stmt)
     blocked_users = res.scalars().all()
     return [UserResponse.model_validate(u) for u in blocked_users]
+
+
+@router.post("/contacts", response_model=QrContactResponse)
+async def save_qr_contact(
+    payload: SaveContactRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Saves or updates a contact discovered through QR code scanning.
+    """
+    if payload.contact_user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot add yourself as a contact."
+        )
+
+    contact_user = await db.get(User, payload.contact_user_id)
+    if not contact_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact user not found."
+        )
+
+    stmt = select(QrContact).where(
+        QrContact.user_id == current_user.id,
+        QrContact.contact_user_id == payload.contact_user_id
+    )
+    existing = (await db.execute(stmt)).scalar_one_or_none()
+
+    if existing:
+        if payload.nickname is not None:
+            existing.nickname = payload.nickname
+        if payload.qr_payload is not None:
+            existing.qr_payload = payload.qr_payload
+        await db.commit()
+        await db.refresh(existing)
+        contact_record = existing
+    else:
+        contact_record = QrContact(
+            user_id=current_user.id,
+            contact_user_id=payload.contact_user_id,
+            qr_payload=payload.qr_payload,
+            nickname=payload.nickname
+        )
+        db.add(contact_record)
+        await db.commit()
+        await db.refresh(contact_record)
+
+    return QrContactResponse(
+        id=contact_record.id,
+        user_id=current_user.id,
+        contact_user=UserResponse.model_validate(contact_user),
+        qr_payload=contact_record.qr_payload,
+        nickname=contact_record.nickname
+    )
+
+
+@router.get("/contacts", response_model=List[QrContactResponse])
+async def list_qr_contacts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Lists all saved QR contacts for the authenticated user.
+    """
+    stmt = (
+        select(QrContact, User)
+        .join(User, QrContact.contact_user_id == User.id)
+        .where(QrContact.user_id == current_user.id)
+        .order_by(QrContact.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    rows = res.all()
+
+    contacts = []
+    for c, u in rows:
+        contacts.append(
+            QrContactResponse(
+                id=c.id,
+                user_id=c.user_id,
+                contact_user=UserResponse.model_validate(u),
+                qr_payload=c.qr_payload,
+                nickname=c.nickname
+            )
+        )
+    return contacts
+
+
+@router.delete("/contacts/{contact_user_id}", response_model=dict)
+async def delete_qr_contact(
+    contact_user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Removes a saved QR contact.
+    """
+    stmt = delete(QrContact).where(
+        QrContact.user_id == current_user.id,
+        QrContact.contact_user_id == contact_user_id
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"message": "Contact removed successfully."}

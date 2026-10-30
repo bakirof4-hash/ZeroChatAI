@@ -26,3 +26,17 @@ data class UsernameCheckResponse(
     @SerializedName("available") val available: Boolean,
     @SerializedName("message") val message: String
 )
+
+data class SaveContactRequest(
+    @SerializedName("contact_user_id") val contactUserId: Int,
+    @SerializedName("qr_payload") val qrPayload: String? = null,
+    @SerializedName("nickname") val nickname: String? = null
+)
+
+data class QrContactDto(
+    @SerializedName("id") val id: Int,
+    @SerializedName("user_id") val userId: Int,
+    @SerializedName("contact_user") val contactUser: UserDto,
+    @SerializedName("qr_payload") val qrPayload: String? = null,
+    @SerializedName("nickname") val nickname: String? = null
+)

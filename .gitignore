@@ -38,7 +38,8 @@ backend/zerochat.db
 backend/zerochat.db-journal
 
 # Uploads directory
-backend/uploads/*
+uploads/
+**/uploads/*
 !backend/uploads/.gitkeep
 
 # Environment & local credentials
