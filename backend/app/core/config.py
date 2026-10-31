@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+    PORT: int = 8000
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() in ["production", "prod"]
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./zerochat.db"

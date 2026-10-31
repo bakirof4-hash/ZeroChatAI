@@ -45,6 +45,7 @@ android {
             buildConfigField("String", "BASE_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "PRODUCTION_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "EMULATOR_URL", "\"$emulatorBackendUrl\"")
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

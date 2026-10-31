@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.env
+zerochat.db
+*.db
+*.log
+uploads/*
+!uploads/.gitkeep
+

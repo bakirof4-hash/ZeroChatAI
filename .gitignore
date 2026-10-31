@@ -10,6 +10,8 @@ build/
 **/build/
 android/app/build/
 android/.gradle/
+.kotlin/
+android/.kotlin/
 
 # Android Studio / IntelliJ / Eclipse / VS Code
 .idea/
@@ -34,6 +36,9 @@ dist/
 .coverage
 htmlcov/
 *.sqlite3
+*.db
+*.db-shm
+*.db-wal
 backend/zerochat.db
 backend/zerochat.db-journal
 

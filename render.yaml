@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: zerochat-ai-backend
+    env: python
+    region: frankfurt # or oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false # Set in Render Dashboard: postgresql+asyncpg://postgres:...@...supabase.co:5432/postgres
+      - key: SECRET_KEY
+        generateValue: true # Render automatically generates a cryptographically secure 256-bit secret key!
+      - key: SUPABASE_URL
+        sync: false # Set in Render Dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false # Set in Render Dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # Set in Render Dashboard
+      - key: SMTP_ENABLED
+        value: "true"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: SMTP_USER
+        sync: false # Your Gmail address in Render Dashboard
+      - key: SMTP_PASSWORD
+        sync: false # Your 16-char Google App Password in Render Dashboard
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: "ZeroChat AI Security"
+      - key: FOUNDER_EMAIL
+        sync: false
+      - key: FOUNDER_PASSWORD
+        sync: false
+      - key: FOUNDER_USERNAME
+        value: "ZeroFounder"
+      - key: FOUNDER_AUTO_PROVISION
+        value: "true"
+

@@ -55,3 +55,4 @@ def test_idempotent_migrations_on_sqlite():
         cols_after = {c["name"] for c in inspect(conn).get_columns("users")}
         assert "bio" in cols_after
         assert "avatar_url" in cols_after
+

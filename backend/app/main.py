@@ -95,6 +95,7 @@ async def health_check():
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT,
         "database_backend": db_type,
         "supabase_configured": bool(settings.SUPABASE_URL),
         "supabase_storage_configured": SupabaseStorageService.is_configured(),

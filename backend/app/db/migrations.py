@@ -65,3 +65,4 @@ def run_idempotent_migrations(connection: Connection) -> None:
                 )
         except Exception as e:
             logger.warning("Could not sync alembic_version: %s", e)
+
