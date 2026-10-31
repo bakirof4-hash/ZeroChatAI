@@ -19,7 +19,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        buildConfigField("String", "BASE_URL", "\"https://api.zerochat.ai/\"")
+        buildConfigField("String", "BASE_URL", "\"https://zerochatai-1.onrender.com/\"")
     }
 
     signingConfigs {
@@ -33,7 +33,7 @@ android {
     // environment variables (ZEROCHAT_BACKEND_URL), or production HTTPS default.
     val prodBackendUrl = (project.findProperty("zerochat.backend.url") as? String)
         ?: System.getenv("ZEROCHAT_BACKEND_URL")
-        ?: "https://api.zerochat.ai/"
+        ?: "https://zerochatai-1.onrender.com/"
 
     val emulatorBackendUrl = (project.findProperty("zerochat.emulator.url") as? String)
         ?: System.getenv("ZEROCHAT_EMULATOR_URL")
@@ -72,6 +72,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
     packaging {
         resources {

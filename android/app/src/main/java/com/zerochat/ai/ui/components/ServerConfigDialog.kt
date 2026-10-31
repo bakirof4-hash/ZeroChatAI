@@ -131,12 +131,12 @@ fun ServerConfigDialog(
 
                 // Presets
                 ServerPresetItem(
-                    title = "Production Cloud (api.zerochat.ai)",
-                    subtitle = "https://api.zerochat.ai/",
+                    title = "Render Cloud (Live API)",
+                    subtitle = "https://zerochatai-1.onrender.com/",
                     icon = Icons.Default.Dns,
-                    isSelected = inputUrl.startsWith("https://api.zerochat.ai"),
+                    isSelected = inputUrl.contains("zerochatai-1.onrender.com"),
                     onClick = {
-                        inputUrl = "https://api.zerochat.ai/"
+                        inputUrl = "https://zerochatai-1.onrender.com/"
                         warningMessage = null
                     }
                 )
@@ -144,12 +144,12 @@ fun ServerConfigDialog(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 ServerPresetItem(
-                    title = "Render Cloud (onrender.com)",
-                    subtitle = "https://zerochat-ai-backend.onrender.com/",
+                    title = "Custom Cloud Domain",
+                    subtitle = "https://api.zerochat.ai/",
                     icon = Icons.Default.Dns,
-                    isSelected = inputUrl.contains("onrender.com"),
+                    isSelected = inputUrl.startsWith("https://api.zerochat.ai"),
                     onClick = {
-                        inputUrl = "https://zerochat-ai-backend.onrender.com/"
+                        inputUrl = "https://api.zerochat.ai/"
                         warningMessage = null
                     }
                 )

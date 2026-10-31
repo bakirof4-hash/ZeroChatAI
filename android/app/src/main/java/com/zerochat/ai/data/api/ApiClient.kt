@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    const val DEFAULT_PRODUCTION_URL = "https://api.zerochat.ai/"
+    const val DEFAULT_PRODUCTION_URL = "https://zerochatai-1.onrender.com/"
     const val DEFAULT_EMULATOR_URL = "http://10.0.2.2:8000/"
 
     private val hostSelectionInterceptor = HostSelectionInterceptor()
@@ -167,7 +167,7 @@ object ApiClient {
         val msg = e.localizedMessage ?: ""
         return when {
             msg.contains("10.0.2.2") && !isEmulator() -> {
-                "Cannot connect to 10.0.2.2 from a physical Android phone. Tap Server Settings (top right) to connect to your PC's IP (e.g. 192.168.1.68) or https://api.zerochat.ai/."
+                "Cannot connect to 10.0.2.2 from a physical Android phone. Tap Server Settings (top right) to connect to your PC's IP (e.g. 192.168.1.68) or https://zerochatai-1.onrender.com/."
             }
             e is ConnectException || msg.contains("Failed to connect") -> {
                 "Failed to connect to backend at $baseUrl. Ensure server is running and your device is on the same network."
