@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     SMTP_USE_TLS: bool = True
     SMTP_ENABLED: bool = False  # Set to True when valid credentials are provided
 
+    # Resend Email API Configuration (HTTPS REST API - recommended for Render/Cloud)
+    # Get your key at https://resend.com/api-keys
+    RESEND_API_KEY: Optional[str] = None
+
     # Founder / Super Admin Provisioning
     FOUNDER_EMAIL: str = "founder@zerochat.ai"
     FOUNDER_PASSWORD: Optional[str] = None

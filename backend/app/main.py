@@ -32,12 +32,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Database schema initialization/migration warning: %s", e)
 
-    # 2. Check SMTP status
+    # 2. Check Email Service status
     if EmailService.is_configured():
-        logger.info("SMTP service: ENABLED (Host: %s:%s, User: %s)", settings.SMTP_HOST, settings.SMTP_PORT, settings.SMTP_USER)
+        logger.info("Email service: ENABLED (Provider: %s)", EmailService.get_provider_name())
     else:
         logger.warning(
-            "SMTP service is NOT CONFIGURED. Live Gmail delivery is inactive. %s",
+            "Email service is NOT CONFIGURED. Live email delivery is inactive. %s",
             EmailService.get_configuration_diagnostics()
         )
 
@@ -100,6 +100,8 @@ async def health_check():
         "supabase_configured": bool(settings.SUPABASE_URL),
         "supabase_storage_configured": SupabaseStorageService.is_configured(),
         "smtp_configured": EmailService.is_configured(),
+        "email_service_configured": EmailService.is_configured(),
+        "email_provider": EmailService.get_provider_name(),
         "founder_email": settings.FOUNDER_EMAIL
     }
 

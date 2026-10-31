@@ -24,6 +24,8 @@ services:
         sync: false # Set in Render Dashboard
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false # Set in Render Dashboard
+      - key: RESEND_API_KEY
+        sync: false # Set in Render Dashboard: Resend API Key (re_...) for HTTPS email delivery
       - key: SMTP_ENABLED
         value: "true"
       - key: SMTP_HOST
