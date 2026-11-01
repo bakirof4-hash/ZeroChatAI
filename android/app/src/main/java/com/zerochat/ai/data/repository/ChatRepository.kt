@@ -10,6 +10,19 @@ import okhttp3.MultipartBody
 class ChatRepository(
     private val apiService: ZeroChatApiService
 ) {
+    suspend fun getConversations(): ApiResult<List<ConversationDto>> = withContext(Dispatchers.IO) {
+        try {
+            val res = apiService.getConversations()
+            if (res.isSuccessful && res.body() != null) {
+                ApiResult.Success(res.body()!!)
+            } else {
+                ApiResult.Error("Failed to fetch conversations (${res.code()})", res.code())
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e.localizedMessage ?: "Failed to connect to conversations list")
+        }
+    }
+
     suspend fun getMessages(): ApiResult<List<ChatMessageDto>> = withContext(Dispatchers.IO) {
         try {
             val res = apiService.getChatMessages()

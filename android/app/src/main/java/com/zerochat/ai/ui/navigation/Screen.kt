@@ -8,6 +8,7 @@ sealed class Screen(val route: String) {
     }
     object CreatePassword : Screen("create_password")
     object ForgotPassword : Screen("forgot_password")
+    object ConversationsList : Screen("conversations_list")
     object ChatFeed : Screen("chat_feed")
     object UserSearch : Screen("user_search")
     object Profile : Screen("profile")

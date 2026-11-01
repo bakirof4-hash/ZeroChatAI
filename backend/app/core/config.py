@@ -76,7 +76,8 @@ class Settings(BaseSettings):
     RESEND_API_KEY: Optional[str] = None
 
     # Founder / Super Admin Provisioning
-    FOUNDER_EMAIL: str = "founder@zerochat.ai"
+    # The original Founder account belongs exclusively to bakirof4@gmail.com
+    FOUNDER_EMAIL: str = "bakirof4@gmail.com"
     FOUNDER_PASSWORD: Optional[str] = None
     FOUNDER_USERNAME: str = "ZeroFounder"
     FOUNDER_AUTO_PROVISION: bool = True

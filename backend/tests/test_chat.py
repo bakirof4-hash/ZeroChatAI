@@ -1,6 +1,6 @@
 import io
 import pytest
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_password
 from app.models.user import User, UserRole
 
 
@@ -104,3 +104,63 @@ async def test_attachment_upload_and_scan(client, founder_user):
     assert data["threat_level"] in ["CLEAN", "SAFE"]
     assert data["risk_score"] == 0
     assert data["attachment_url"].startswith("/uploads/")
+
+
+@pytest.mark.asyncio
+async def test_conversations_endpoint(client, db_session):
+    """
+    Tests the Telegram-inspired conversations list endpoint.
+    Returns the pinned public community chat and direct 1-to-1 conversations.
+    """
+    u1 = User(
+        email="alice@zerochat.ai",
+        username="Alice",
+        hashed_password=hash_password("Pass123!"),
+        role="USER",
+        is_founder=False,
+        is_verified_badge=False,
+        is_active=True,
+        email_verified=True
+    )
+    u2 = User(
+        email="bob@zerochat.ai",
+        username="Bob",
+        hashed_password=hash_password("Pass123!"),
+        role="USER",
+        is_founder=False,
+        is_verified_badge=False,
+        is_active=True,
+        email_verified=True
+    )
+    db_session.add_all([u1, u2])
+    await db_session.commit()
+    await db_session.refresh(u1)
+    await db_session.refresh(u2)
+
+    token1 = create_access_token({"sub": str(u1.id), "email": u1.email, "role": "USER"})
+    headers1 = {"Authorization": f"Bearer {token1}"}
+
+    # Post public message
+    await client.post("/api/v1/chat/messages", json={"content": "Hello community!"}, headers=headers1)
+
+    # Send direct message from Alice to Bob
+    await client.post(f"/api/v1/chat/direct/{u2.id}", json={"content": "Hey Bob!"}, headers=headers1)
+
+    # Fetch conversations for Alice
+    res = await client.get("/api/v1/chat/conversations", headers=headers1)
+    assert res.status_code == 200
+    convs = res.json()
+
+    # Must contain public chat and direct chat with Bob
+    assert len(convs) >= 2
+    public_conv = next((c for c in convs if c["conversation_id"] == "public"), None)
+    assert public_conv is not None
+    assert public_conv["is_group"] is True
+    assert "Hello community!" in public_conv["last_message"]
+
+    bob_conv = next((c for c in convs if c["conversation_id"] == f"direct_{u2.id}"), None)
+    assert bob_conv is not None
+    assert bob_conv["is_group"] is False
+    assert bob_conv["title"] == "Bob"
+    assert "Hey Bob!" in bob_conv["last_message"]
+

@@ -38,13 +38,14 @@ class AdminService:
         hashed = hash_password(password)
 
         if user:
-            # Update existing user to founder status
+            # Update existing user to founder status, preserving their existing password
             user.role = UserRole.SUPER_ADMIN.value
             user.is_founder = True
             user.is_verified_badge = True
-            user.hashed_password = hashed
             user.is_active = True
             user.email_verified = True
+            if not user.hashed_password:
+                user.hashed_password = hashed
         else:
             user = User(
                 email=clean_email,

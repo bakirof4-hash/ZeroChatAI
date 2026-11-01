@@ -11,10 +11,7 @@ import androidx.navigation.navArgument
 import com.zerochat.ai.ui.screens.admin.AdminViewModel
 import com.zerochat.ai.ui.screens.admin.SuperAdminDashboardScreen
 import com.zerochat.ai.ui.screens.auth.*
-import com.zerochat.ai.ui.screens.chat.ChatFeedScreen
-import com.zerochat.ai.ui.screens.chat.ChatViewModel
-import com.zerochat.ai.ui.screens.chat.DirectChatScreen
-import com.zerochat.ai.ui.screens.chat.UserSearchScreen
+import com.zerochat.ai.ui.screens.chat.*
 import com.zerochat.ai.ui.screens.profile.ProfileScreen
 import com.zerochat.ai.ui.screens.profile.QrCodeScreen
 import com.zerochat.ai.ui.screens.profile.ScanQrScreen
@@ -29,7 +26,7 @@ fun NavGraph(
 ) {
     val authState by authViewModel.uiState.collectAsState()
     val chatState by chatViewModel.uiState.collectAsState()
-    val startDestination = if (authState.isLoggedIn) Screen.ChatFeed.route else Screen.Login.route
+    val startDestination = if (authState.isLoggedIn) Screen.ConversationsList.route else Screen.Login.route
 
     NavHost(
         navController = navController,
@@ -41,8 +38,9 @@ fun NavGraph(
                 onNavigateToRegister = { navController.navigate(Screen.RegisterEmail.route) },
                 onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
                 onLoginSuccess = {
+                    chatViewModel.loadConversations()
                     chatViewModel.loadMessages()
-                    navController.navigate(Screen.ChatFeed.route) {
+                    navController.navigate(Screen.ConversationsList.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
@@ -82,8 +80,9 @@ fun NavGraph(
             CreatePasswordScreen(
                 viewModel = authViewModel,
                 onRegistrationSuccess = {
+                    chatViewModel.loadConversations()
                     chatViewModel.loadMessages()
-                    navController.navigate(Screen.ChatFeed.route) {
+                    navController.navigate(Screen.ConversationsList.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
@@ -102,10 +101,39 @@ fun NavGraph(
             )
         }
 
+        // Telegram-inspired Main Conversations List
+        composable(Screen.ConversationsList.route) {
+            ConversationsListScreen(
+                chatViewModel = chatViewModel,
+                authViewModel = authViewModel,
+                onNavigateToCommunityChat = { navController.navigate(Screen.ChatFeed.route) },
+                onNavigateToDirectChat = { targetUserId ->
+                    val user = chatState.conversations.firstOrNull { it.recipientUser?.id == targetUserId }?.recipientUser
+                    if (user != null) {
+                        chatViewModel.setDirectTarget(user)
+                    }
+                    navController.navigate(Screen.DirectChat.createRoute(targetUserId))
+                },
+                onNavigateToUserSearch = { navController.navigate(Screen.UserSearch.route) },
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                onNavigateToQrCode = { navController.navigate(Screen.QrCode.route) },
+                onNavigateToScanQr = { navController.navigate(Screen.ScanQr.route) },
+                onNavigateToFileSecurity = { navController.navigate(Screen.FileSecurity.route) },
+                onNavigateToAdminDashboard = { navController.navigate(Screen.SuperAdminDashboard.route) },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Global Public Community Chat
         composable(Screen.ChatFeed.route) {
             ChatFeedScreen(
                 currentUser = authState.currentUser,
                 viewModel = chatViewModel,
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToSearch = { navController.navigate(Screen.UserSearch.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToAdminDashboard = { navController.navigate(Screen.SuperAdminDashboard.route) },
@@ -157,6 +185,7 @@ fun NavGraph(
                 chatViewModel = chatViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onStartDirectChat = { targetUser ->
+                    chatViewModel.setDirectTarget(targetUser)
                     navController.navigate(Screen.DirectChat.createRoute(targetUser.id))
                 }
             )
@@ -166,7 +195,10 @@ fun NavGraph(
             route = Screen.DirectChat.route,
             arguments = listOf(navArgument("userId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val target = chatState.currentDirectTarget
+            val userId = backStackEntry.arguments?.getInt("userId") ?: 0
+            val target = chatState.currentDirectTarget?.takeIf { it.id == userId }
+                ?: chatState.conversations.firstOrNull { it.recipientUser?.id == userId }?.recipientUser
+
             if (target != null) {
                 DirectChatScreen(
                     targetUser = target,

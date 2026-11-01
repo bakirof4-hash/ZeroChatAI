@@ -122,6 +122,9 @@ interface ZeroChatApiService {
     ): Response<GenericResponse>
 
     // --- Chat & Messaging ---
+    @GET("api/v1/chat/conversations")
+    suspend fun getConversations(): Response<List<ConversationDto>>
+
     @GET("api/v1/chat/messages")
     suspend fun getChatMessages(): Response<List<ChatMessageDto>>
 

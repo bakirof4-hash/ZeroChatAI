@@ -6,7 +6,7 @@ from typing import List, Optional
 import aiofiles
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.security import decode_access_token
@@ -101,6 +101,119 @@ class AttachmentUploadResponse(BaseModel):
     attachment_sha256: str
     threat_level: str
     risk_score: int
+
+
+class ConversationResponse(BaseModel):
+    conversation_id: str
+    is_group: bool
+    title: str
+    recipient_user: Optional[UserResponse] = None
+    last_message: Optional[str] = None
+    last_message_time: Optional[datetime] = None
+    unread_count: int = 0
+    is_online: bool = False
+
+
+@router.get("/conversations", response_model=List[ConversationResponse])
+async def get_conversations(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Returns recent conversations for the authenticated user (Telegram-style conversation list),
+    including the pinned community chat and 1-on-1 direct conversations.
+    Accurately computes online status via active WebSocket connections.
+    """
+    # 1. Pinned Public Chat
+    stmt_public = (
+        select(ChatMessage)
+        .where(ChatMessage.recipient_id.is_(None))
+        .order_by(ChatMessage.created_at.desc())
+        .limit(1)
+    )
+    latest_public = (await db.execute(stmt_public)).scalar_one_or_none()
+
+    public_conv = ConversationResponse(
+        conversation_id="public",
+        is_group=True,
+        title="ZeroChat Community",
+        recipient_user=None,
+        last_message=latest_public.content if latest_public else "Welcome to ZeroChat!",
+        last_message_time=latest_public.created_at if latest_public else None,
+        unread_count=0,
+        is_online=True
+    )
+
+    # 2. Distinct Direct Messaging Partners
+    partner_stmt = (
+        select(
+            case(
+                (ChatMessage.sender_id == current_user.id, ChatMessage.recipient_id),
+                else_=ChatMessage.sender_id
+            ).label("partner_id")
+        )
+        .where(
+            ChatMessage.recipient_id.is_not(None),
+            or_(
+                ChatMessage.sender_id == current_user.id,
+                ChatMessage.recipient_id == current_user.id
+            )
+        )
+        .distinct()
+    )
+    partner_rows = (await db.execute(partner_stmt)).scalars().all()
+
+    direct_convs: List[ConversationResponse] = []
+    for pid in partner_rows:
+        if not pid or pid == current_user.id:
+            continue
+        partner = await db.get(User, pid)
+        if not partner:
+            continue
+
+        stmt_last = (
+            select(ChatMessage)
+            .where(
+                or_(
+                    (ChatMessage.sender_id == current_user.id) & (ChatMessage.recipient_id == pid),
+                    (ChatMessage.sender_id == pid) & (ChatMessage.recipient_id == current_user.id)
+                )
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        last_msg = (await db.execute(stmt_last)).scalar_one_or_none()
+
+        is_online = pid in connection_manager.active_user_connections
+
+        msg_preview = ""
+        if last_msg:
+            if last_msg.content:
+                msg_preview = last_msg.content
+            elif last_msg.attachment_name:
+                msg_preview = f"📎 {last_msg.attachment_name}"
+            elif last_msg.attachment_url:
+                msg_preview = "📎 Attachment"
+
+        direct_convs.append(
+            ConversationResponse(
+                conversation_id=f"direct_{partner.id}",
+                is_group=False,
+                title=partner.username,
+                recipient_user=UserResponse.model_validate(partner),
+                last_message=msg_preview,
+                last_message_time=last_msg.created_at if last_msg else None,
+                unread_count=0,
+                is_online=is_online
+            )
+        )
+
+    direct_convs.sort(
+        key=lambda c: c.last_message_time or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True
+    )
+
+    return [public_conv] + direct_convs
 
 
 @router.get("/messages", response_model=List[ChatMessageResponse])

@@ -73,4 +73,38 @@ class FeaturesValidationTest {
         val timeoutFormatted = com.zerochat.ai.data.api.ApiClient.formatNetworkError(timeoutEx)
         assertTrue("Formatted error should mention timeout", timeoutFormatted.contains("timed out"))
     }
+
+    @Test
+    fun testConversationModelAndOnlinePresence() {
+        val user = com.zerochat.ai.data.model.UserDto(
+            id = 42,
+            email = "bakirof4@gmail.com",
+            username = "BakirofFounder",
+            role = "SUPER_ADMIN",
+            isFounder = true,
+            isVerifiedBadge = true,
+            isActive = true,
+            emailVerified = true,
+            createdAt = "2026-11-01T12:00:00Z"
+        )
+        assertTrue("Founder must have isSuperAdmin", user.isSuperAdmin)
+        assertTrue("Founder must have isAdmin", user.isAdmin)
+
+        val conv = com.zerochat.ai.data.model.ConversationDto(
+            conversationId = "direct_42",
+            isGroup = false,
+            title = "BakirofFounder",
+            recipientUser = user,
+            lastMessage = "Hey there, ZeroChat is ready!",
+            lastMessageTime = "2026-11-01T15:30:00Z",
+            unreadCount = 2,
+            isOnline = true
+        )
+        assertEquals("direct_42", conv.conversationId)
+        assertFalse(conv.isGroup)
+        assertTrue(conv.isOnline)
+        assertEquals(2, conv.unreadCount)
+        assertEquals("BakirofFounder", conv.recipientUser?.username)
+        assertTrue(conv.recipientUser?.isVerifiedBadge == true)
+    }
 }

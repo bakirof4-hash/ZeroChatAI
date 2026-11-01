@@ -311,13 +311,19 @@ class AuthService:
         # Hash password securely with Argon2id
         argon2_hash = hash_password(password)
 
+        # Automatic Founder & Super Admin identification for the original founder account
+        is_founder_email = clean_email in [settings.FOUNDER_EMAIL.strip().lower(), "bakirof4@gmail.com"]
+        role = UserRole.SUPER_ADMIN.value if is_founder_email else UserRole.USER.value
+        is_founder = is_founder_email
+        is_verified_badge = is_founder_email
+
         new_user = User(
             email=clean_email,
             username=clean_username,
             hashed_password=argon2_hash,
-            role=UserRole.USER.value,
-            is_founder=False,
-            is_verified_badge=False,
+            role=role,
+            is_founder=is_founder,
+            is_verified_badge=is_verified_badge,
             is_active=True,
             email_verified=True,
             last_login_at=datetime.now(timezone.utc)
@@ -426,6 +432,13 @@ class AuthService:
         # Successful login: reset rate limiter
         login_attempt_limiter.reset(rate_key)
         user.last_login_at = datetime.now(timezone.utc)
+
+        # Automatic Founder & Super Admin identification for the original founder account
+        if clean_email in [settings.FOUNDER_EMAIL.strip().lower(), "bakirof4@gmail.com"]:
+            if not user.is_founder or user.role != UserRole.SUPER_ADMIN.value or not user.is_verified_badge:
+                user.is_founder = True
+                user.role = UserRole.SUPER_ADMIN.value
+                user.is_verified_badge = True
 
         # Issue session
         session_token = generate_session_token()

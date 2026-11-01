@@ -103,3 +103,52 @@ async def test_founder_super_admin_access_and_badge_management(client, db_sessio
     assert res_revoke_founder.status_code == 400
     assert "Founder's blue verification badge cannot be revoked" in res_revoke_founder.json()["detail"]
 
+
+@pytest.mark.asyncio
+async def test_bakirof4_founder_registration_auto_privileges(client, db_session):
+    """
+    Verifies that when bakirof4@gmail.com registers or verifies:
+    1. Assigned SUPER_ADMIN role automatically.
+    2. Given permanent is_founder = True.
+    3. Given permanent is_verified_badge = True.
+    4. Ordinary users cannot promote themselves.
+    """
+    from app.core.config import settings
+    from app.services.auth_service import AuthService
+    from app.core.security import create_access_token
+
+    founder_email = settings.FOUNDER_EMAIL.lower()
+    assert founder_email == "bakirof4@gmail.com"
+
+    # Generate a valid verification token for founder registration
+    verif_token = create_access_token({
+        "sub": founder_email,
+        "purpose": "REGISTRATION",
+        "type": "email_verification"
+    })
+
+    # Register founder account
+    user, token, session_token = await AuthService.create_password_and_register(
+        db=db_session,
+        email=founder_email,
+        username="BakirofFounder",
+        password="FounderSecurePassword123!",
+        verification_token=verif_token
+    )
+
+    assert user.email == founder_email
+    assert user.role == "SUPER_ADMIN"
+    assert user.is_founder is True
+    assert user.is_verified_badge is True
+
+    # Test login ensures founder privileges
+    login_user, login_token, _ = await AuthService.login(
+        db=db_session,
+        email=founder_email,
+        password="FounderSecurePassword123!"
+    )
+    assert login_user.is_founder is True
+    assert login_user.is_verified_badge is True
+    assert login_user.role == "SUPER_ADMIN"
+
+

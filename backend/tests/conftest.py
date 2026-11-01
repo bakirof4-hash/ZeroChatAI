@@ -8,6 +8,8 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.core.config import settings
+settings.RESEND_API_KEY = None
+settings.SMTP_ENABLED = False
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -74,7 +76,7 @@ async def client(db_session):
 async def founder_user(db_session):
     return await AdminService.provision_founder_account(
         db=db_session,
-        email="founder@zerochat.ai",
+        email=settings.FOUNDER_EMAIL,
         password="FounderSecret123!",
         username="FounderAdmin"
     )

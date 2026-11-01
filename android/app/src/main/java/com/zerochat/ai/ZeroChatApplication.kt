@@ -35,6 +35,8 @@ class ZeroChatApplication : Application() {
         adminRepository = AdminRepository(apiService)
         chatRepository = ChatRepository(apiService)
         updateRepository = UpdateRepository(apiService)
+
+        com.zerochat.ai.util.NotificationHelper.createNotificationChannels(this)
     }
 }
 

@@ -38,3 +38,14 @@ data class AttachmentUploadResponse(
     @SerializedName("threat_level") val threatLevel: String,
     @SerializedName("risk_score") val riskScore: Int
 )
+
+data class ConversationDto(
+    @SerializedName("conversation_id") val conversationId: String,
+    @SerializedName("is_group") val isGroup: Boolean,
+    @SerializedName("title") val title: String,
+    @SerializedName("recipient_user") val recipientUser: UserDto? = null,
+    @SerializedName("last_message") val lastMessage: String? = null,
+    @SerializedName("last_message_time") val lastMessageTime: String? = null,
+    @SerializedName("unread_count") val unreadCount: Int = 0,
+    @SerializedName("is_online") val isOnline: Boolean = false
+)
