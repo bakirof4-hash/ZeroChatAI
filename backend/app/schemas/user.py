@@ -21,6 +21,10 @@ class UserResponse(BaseModel):
     email_verified: bool
     created_at: datetime
     last_login_at: Optional[datetime] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    google_id: Optional[str] = None
+    full_name: Optional[str] = None
 
 
 class UserProfileUpdate(BaseModel):

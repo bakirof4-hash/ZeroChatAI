@@ -1,3 +1,5 @@
+import random
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from fastapi import HTTPException, status
@@ -19,6 +21,7 @@ from app.models.session import UserSession
 from app.models.user import User, UserRole
 from app.models.verification import CodePurpose, VerificationCode
 from app.services.email_service import EmailService
+from app.services.google_auth_service import GoogleAuthService
 
 
 class AuthService:
@@ -461,6 +464,268 @@ class AuthService:
             details=f"User {user.email} (Role: {user.role}) logged in successfully."
         )
         db.add(event)
+        await db.commit()
+        await db.refresh(user)
+
+        jwt_token = create_access_token({
+            "sub": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "is_founder": user.is_founder,
+            "session_token": session_token
+        })
+
+        return user, jwt_token, session_token
+
+    @classmethod
+    async def google_sign_in(
+        cls,
+        db: AsyncSession,
+        id_token_str: str,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> Tuple[User, str, str]:
+        """
+        Authenticates or registers a user via Google Identity (OAuth 2.0 / OpenID Connect).
+        - Verifies signature, issuer, audience, and expiry via Google JWKs.
+        - Retrieves email, google_id, name, and profile picture.
+        - Preserves existing accounts and links them smoothly.
+        - Strictly enforces founder & SUPER_ADMIN rights for bakirof4@gmail.com
+          ONLY upon verified Google email ownership.
+        """
+        claims = GoogleAuthService.verify_id_token(id_token_str)
+        google_id = claims["google_id"]
+        email = claims["email"]
+        full_name = claims.get("name")
+        avatar_url = claims.get("picture")
+        email_verified = claims.get("email_verified", True)
+
+        # 1. Look up existing user by google_id or email
+        stmt = select(User).where((User.google_id == google_id) | (User.email == email))
+        res = await db.execute(stmt)
+        user = res.scalar_one_or_none()
+
+        if user:
+            # Account linking & profile updates
+            if not user.google_id:
+                user.google_id = google_id
+            if full_name and not user.full_name:
+                user.full_name = full_name
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            user.email_verified = True
+            user.last_login_at = datetime.now(timezone.utc)
+        else:
+            # Create new user: generate a clean unique username
+            base_name = email.split("@")[0]
+            clean_name = re.sub(r"[^a-zA-Z0-9_]", "", base_name)[:20]
+            if len(clean_name) < 3:
+                clean_name = f"user_{random.randint(1000, 9999)}"
+
+            candidate_username = clean_name
+            attempt = 1
+            while True:
+                existing_u = await cls.check_username_available(db, candidate_username)
+                if existing_u:
+                    break
+                candidate_username = f"{clean_name[:15]}_{random.randint(100, 9999)}"
+                attempt += 1
+                if attempt > 10:
+                    candidate_username = f"user_{random.randint(100000, 999999)}"
+                    break
+
+            user = User(
+                email=email,
+                username=candidate_username,
+                google_id=google_id,
+                full_name=full_name,
+                avatar_url=avatar_url,
+                hashed_password=None,
+                role=UserRole.USER.value,
+                is_founder=False,
+                is_verified_badge=False,
+                is_active=True,
+                email_verified=True,
+                last_login_at=datetime.now(timezone.utc)
+            )
+            db.add(user)
+            await db.flush()
+
+        # Enforce Founder & Super Admin privileges for bakirof4@gmail.com
+        # ONLY after email ownership is proven by Google token
+        is_founder_email = email in [settings.FOUNDER_EMAIL.strip().lower(), "bakirof4@gmail.com"]
+        if is_founder_email and email_verified:
+            user.is_founder = True
+            user.role = UserRole.SUPER_ADMIN.value
+            user.is_verified_badge = True
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been deactivated. Please contact support."
+            )
+
+        # Issue session
+        session_token = generate_session_token()
+        session_expires = datetime.now(timezone.utc) + timedelta(days=settings.SESSION_EXPIRE_DAYS)
+        user_session = UserSession(
+            session_token=session_token,
+            user_id=user.id,
+            expires_at=session_expires,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        db.add(user_session)
+
+        # Audit and security event logs
+        audit = AuditLog(
+            actor_id=user.id,
+            actor_email=email,
+            action="GOOGLE_LOGIN_SUCCESS",
+            target_id=user.id,
+            target_email=email,
+            details=f"User authenticated via Google Identity (Google ID: {google_id}).",
+            ip_address=ip_address
+        )
+        db.add(audit)
+
+        event = SecurityEvent(
+            event_type="GOOGLE_AUTH_SUCCESS",
+            email=email,
+            ip_address=ip_address,
+            severity="INFO",
+            details=f"Google OAuth 2.0 login verified for {user.email} (Role: {user.role})."
+        )
+        db.add(event)
+
+        await db.commit()
+        await db.refresh(user)
+
+        jwt_token = create_access_token({
+            "sub": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "is_founder": user.is_founder,
+            "session_token": session_token
+        })
+
+        return user, jwt_token, session_token
+
+    @classmethod
+    async def passwordless_login(
+        cls,
+        db: AsyncSession,
+        email: str,
+        verification_token: str,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> Tuple[User, str, str]:
+        """
+        Authenticates or provisions a user via verified 6-digit one-time email code token.
+        Provides a zero-password alternative for devices lacking Google Play Services
+        (such as Huawei devices, custom ROMs, or bare emulators).
+        """
+        clean_email = email.strip().lower()
+
+        # Validate verification token
+        payload = decode_access_token(verification_token)
+        if (
+            not payload
+            or payload.get("sub") != clean_email
+            or payload.get("type") != "email_verification"
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid or expired verification session. Please request a new verification code."
+            )
+
+        # Look up existing user
+        stmt = select(User).where(User.email == clean_email)
+        res = await db.execute(stmt)
+        user = res.scalar_one_or_none()
+
+        if user:
+            user.email_verified = True
+            user.last_login_at = datetime.now(timezone.utc)
+        else:
+            # Generate a unique username for first-time passwordless sign-in
+            base_name = clean_email.split("@")[0]
+            clean_name = re.sub(r"[^a-zA-Z0-9_]", "", base_name)[:20]
+            if len(clean_name) < 3:
+                clean_name = f"user_{random.randint(1000, 9999)}"
+
+            candidate_username = clean_name
+            attempt = 1
+            while True:
+                existing_u = await cls.check_username_available(db, candidate_username)
+                if existing_u:
+                    break
+                candidate_username = f"{clean_name[:15]}_{random.randint(100, 9999)}"
+                attempt += 1
+                if attempt > 10:
+                    candidate_username = f"user_{random.randint(100000, 999999)}"
+                    break
+
+            user = User(
+                email=clean_email,
+                username=candidate_username,
+                hashed_password=None,
+                role=UserRole.USER.value,
+                is_founder=False,
+                is_verified_badge=False,
+                is_active=True,
+                email_verified=True,
+                last_login_at=datetime.now(timezone.utc)
+            )
+            db.add(user)
+            await db.flush()
+
+        # Enforce Founder & Super Admin privileges for bakirof4@gmail.com
+        is_founder_email = clean_email in [settings.FOUNDER_EMAIL.strip().lower(), "bakirof4@gmail.com"]
+        if is_founder_email:
+            user.is_founder = True
+            user.role = UserRole.SUPER_ADMIN.value
+            user.is_verified_badge = True
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account has been deactivated. Please contact support."
+            )
+
+        # Issue session
+        session_token = generate_session_token()
+        session_expires = datetime.now(timezone.utc) + timedelta(days=settings.SESSION_EXPIRE_DAYS)
+        user_session = UserSession(
+            session_token=session_token,
+            user_id=user.id,
+            expires_at=session_expires,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        db.add(user_session)
+
+        # Audit and security event
+        audit = AuditLog(
+            actor_id=user.id,
+            actor_email=clean_email,
+            action="PASSWORDLESS_LOGIN_SUCCESS",
+            target_id=user.id,
+            target_email=clean_email,
+            details=f"User authenticated via verified 6-digit email OTP (zero passwords required).",
+            ip_address=ip_address
+        )
+        db.add(audit)
+
+        event = SecurityEvent(
+            event_type="PASSWORDLESS_LOGIN_SUCCESS",
+            email=clean_email,
+            ip_address=ip_address,
+            severity="INFO",
+            details=f"Passwordless email OTP login successful for {user.email} (Role: {user.role})."
+        )
+        db.add(event)
+
         await db.commit()
         await db.refresh(user)
 

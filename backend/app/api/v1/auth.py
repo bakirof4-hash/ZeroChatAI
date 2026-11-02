@@ -7,9 +7,11 @@ from app.models.user import User
 from app.schemas.auth import (
     AuthTokenResponse,
     CreatePasswordRequest,
+    GoogleAuthRequest,
     LoginRequest,
     LogoutRequest,
     PasswordResetRequest,
+    PasswordlessLoginRequest,
     SendCodeRequest,
     SendCodeResponse,
     VerifyCodeRequest,
@@ -158,6 +160,69 @@ async def login(
         db=db,
         email=payload.email,
         password=payload.password,
+        ip_address=ip,
+        user_agent=user_agent
+    )
+
+    return AuthTokenResponse(
+        access_token=jwt_token,
+        token_type="bearer",
+        session_token=session_token,
+        user=UserResponse.model_validate(user)
+    )
+
+
+@router.post("/google", response_model=AuthTokenResponse)
+async def google_auth(
+    payload: GoogleAuthRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authenticates user with Google Identity (OAuth 2.0 / OpenID Connect ID Token).
+    - Verifies cryptographic token signature against official Google JWKs.
+    - Validates issuer, audience, and expiry.
+    - Resolves existing accounts or registers new users automatically.
+    - Issues authenticated session and ZeroChat JWT access token.
+    """
+    ip = get_client_ip(request)
+    user_agent = request.headers.get("User-Agent")
+
+    user, jwt_token, session_token = await AuthService.google_sign_in(
+        db=db,
+        id_token_str=payload.id_token,
+        ip_address=ip,
+        user_agent=user_agent
+    )
+
+    return AuthTokenResponse(
+        access_token=jwt_token,
+        token_type="bearer",
+        session_token=session_token,
+        user=UserResponse.model_validate(user)
+    )
+
+
+@router.post("/passwordless-login", response_model=AuthTokenResponse)
+async def passwordless_login(
+    payload: PasswordlessLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Authenticates or provisions user via verified 6-digit email OTP token.
+    Provides a zero-password alternative for devices lacking Google Play Services.
+    - Verifies the signed verification token.
+    - Resolves existing user or registers new user.
+    - Issues authenticated session and ZeroChat JWT access token.
+    """
+    ip = get_client_ip(request)
+    user_agent = request.headers.get("User-Agent")
+
+    user, jwt_token, session_token = await AuthService.passwordless_login(
+        db=db,
+        email=payload.email,
+        verification_token=payload.verification_token,
         ip_address=ip,
         user_agent=user_agent
     )

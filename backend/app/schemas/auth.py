@@ -6,14 +6,14 @@ from app.schemas.user import UserResponse
 
 class SendCodeRequest(BaseModel):
     email: EmailStr
-    purpose: str = Field(default="REGISTRATION", description="REGISTRATION or PASSWORD_RESET")
+    purpose: str = Field(default="REGISTRATION", description="REGISTRATION, LOGIN, or PASSWORD_RESET")
 
     @field_validator("purpose")
     @classmethod
     def validate_purpose(cls, v: str) -> str:
         upper = v.upper()
-        if upper not in ["REGISTRATION", "PASSWORD_RESET"]:
-            raise ValueError("Purpose must be REGISTRATION or PASSWORD_RESET")
+        if upper not in ["REGISTRATION", "LOGIN", "PASSWORD_RESET"]:
+            raise ValueError("Purpose must be REGISTRATION, LOGIN, or PASSWORD_RESET")
         return upper
 
 
@@ -69,6 +69,15 @@ class CreatePasswordRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=1)
+
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str = Field(..., min_length=10, description="Google OAuth 2.0 OpenID Connect ID Token")
+
+
+class PasswordlessLoginRequest(BaseModel):
+    email: EmailStr
+    verification_token: str = Field(..., min_length=10, description="Token from verified 6-digit code")
 
 
 class AuthTokenResponse(BaseModel):

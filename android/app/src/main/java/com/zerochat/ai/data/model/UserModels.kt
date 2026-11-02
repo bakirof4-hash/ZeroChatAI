@@ -12,7 +12,11 @@ data class UserDto(
     @SerializedName("is_active") val isActive: Boolean,
     @SerializedName("email_verified") val emailVerified: Boolean,
     @SerializedName("created_at") val createdAt: String,
-    @SerializedName("last_login_at") val lastLoginAt: String? = null
+    @SerializedName("last_login_at") val lastLoginAt: String? = null,
+    @SerializedName("bio") val bio: String? = null,
+    @SerializedName("avatar_url") val avatarUrl: String? = null,
+    @SerializedName("google_id") val googleId: String? = null,
+    @SerializedName("full_name") val fullName: String? = null
 ) {
     val isSuperAdmin: Boolean
         get() = role == "SUPER_ADMIN" || isFounder

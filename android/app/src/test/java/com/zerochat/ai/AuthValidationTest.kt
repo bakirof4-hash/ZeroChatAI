@@ -83,5 +83,45 @@ class AuthValidationTest {
         assertFalse("Regular user must NOT be super admin", regularUser.isSuperAdmin)
         assertFalse("Regular user must NOT be admin", regularUser.isAdmin)
     }
+
+    @Test
+    fun testGoogleAuthRequestAndUserDtoMapping() {
+        val googleReq = com.zerochat.ai.data.model.GoogleAuthRequest(
+            idToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.dummyGoogleIdToken12345"
+        )
+        assertEquals("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.dummyGoogleIdToken12345", googleReq.idToken)
+
+        val googleUser = UserDto(
+            id = 42,
+            email = "bakirof4@gmail.com",
+            username = "bakirof4",
+            role = "SUPER_ADMIN",
+            isFounder = true,
+            isVerifiedBadge = true,
+            isActive = true,
+            emailVerified = true,
+            createdAt = "2026-11-01T20:00:00Z",
+            googleId = "google_id_1098234",
+            fullName = "Umidjon Bakirov",
+            avatarUrl = "https://lh3.googleusercontent.com/a/dummy"
+        )
+
+        assertEquals("google_id_1098234", googleUser.googleId)
+        assertEquals("Umidjon Bakirov", googleUser.fullName)
+        assertEquals("https://lh3.googleusercontent.com/a/dummy", googleUser.avatarUrl)
+        assertTrue(googleUser.isSuperAdmin)
+        assertTrue(googleUser.isFounder)
+        assertTrue(googleUser.isVerifiedBadge)
+    }
+
+    @Test
+    fun testPasswordlessLoginRequestModel() {
+        val req = com.zerochat.ai.data.model.PasswordlessLoginRequest(
+            email = "user@example.com",
+            verificationToken = "sample_verification_token_12345"
+        )
+        assertEquals("user@example.com", req.email)
+        assertEquals("sample_verification_token_12345", req.verificationToken)
+    }
 }
 

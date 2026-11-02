@@ -51,6 +51,14 @@ def run_idempotent_migrations(connection: Connection) -> None:
                 connection.execute(text(stmt))
                 logger.info("Successfully added column '%s' to '%s'.", col.name, table_name)
 
+        # Relax password requirement for Google OAuth in PostgreSQL
+        if table_name == "users" and dialect_name == "postgresql":
+            try:
+                connection.execute(text('ALTER TABLE "users" ALTER COLUMN "hashed_password" DROP NOT NULL'))
+                logger.info("Ensured 'users.hashed_password' is nullable for Google OAuth.")
+            except Exception as e:
+                logger.debug("Password nullable adjustment note: %s", e)
+
     # Synchronize alembic_version table if present
     if "alembic_version" in existing_tables:
         try:

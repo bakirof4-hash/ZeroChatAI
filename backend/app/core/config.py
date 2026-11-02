@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     FOUNDER_USERNAME: str = "ZeroFounder"
     FOUNDER_AUTO_PROVISION: bool = True
 
+    # Google OAuth / Identity Configuration
+    GOOGLE_CLIENT_ID: Optional[str] = None
+
 
 settings = Settings()
 

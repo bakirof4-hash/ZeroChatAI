@@ -39,12 +39,17 @@ android {
         ?: System.getenv("ZEROCHAT_EMULATOR_URL")
         ?: "http://10.0.2.2:8000/"
 
+    val googleWebClientId = (project.findProperty("zerochat.google.client.id") as? String)
+        ?: System.getenv("GOOGLE_WEB_CLIENT_ID")
+        ?: ""
+
     buildTypes {
         release {
             isMinifyEnabled = false
             buildConfigField("String", "BASE_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "PRODUCTION_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "EMULATOR_URL", "\"$emulatorBackendUrl\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
             signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -59,6 +64,7 @@ android {
             buildConfigField("String", "BASE_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "PRODUCTION_URL", "\"$prodBackendUrl\"")
             buildConfigField("String", "EMULATOR_URL", "\"$emulatorBackendUrl\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -116,6 +122,14 @@ dependencies {
 
     // QR Code Generation & Matrix (ZXing)
     implementation("com.google.zxing:core:3.5.3")
+
+    // Modern Google Credential Manager (Android 14+ and backported to Android 4.4+)
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Legacy Google Play Services Auth (Universal Fallback for older devices / ROMs)
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

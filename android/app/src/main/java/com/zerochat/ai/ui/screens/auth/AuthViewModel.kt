@@ -122,6 +122,38 @@ class AuthViewModel(
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }
 
+    fun setErrorMessage(message: String) {
+        _uiState.update { it.copy(errorMessage = message, isLoading = false) }
+    }
+
+    fun signInWithGoogle(idToken: String, onSuccess: () -> Unit = {}) {
+        if (idToken.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Google authentication failed: Empty ID token received.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            when (val result = authRepository.googleSignIn(idToken)) {
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentUser = result.data.user,
+                            isLoggedIn = true,
+                            successMessage = "Welcome, ${result.data.user.username}!"
+                        )
+                    }
+                    onSuccess()
+                }
+                is ApiResult.Error -> {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
+                }
+                is ApiResult.Loading -> Unit
+            }
+        }
+    }
+
     fun sendVerificationCode(purpose: String = "REGISTRATION", onSuccess: () -> Unit = {}) {
         val email = _uiState.value.email.trim()
         if (email.isBlank() || !emailPattern.matcher(email).matches()) {
@@ -179,6 +211,38 @@ class AuthViewModel(
                         )
                     }
                     onSuccess(token)
+                }
+                is ApiResult.Error -> {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
+                }
+                is ApiResult.Loading -> Unit
+            }
+        }
+    }
+
+    fun passwordlessLogin(onSuccess: () -> Unit = {}) {
+        val state = _uiState.value
+        val token = state.verificationToken
+        val email = state.email.trim()
+
+        if (token.isNullOrBlank() || email.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Verification session expired. Please request a new code.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            when (val result = authRepository.passwordlessLogin(email, token)) {
+                is ApiResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            currentUser = result.data.user,
+                            isLoggedIn = true,
+                            successMessage = "Welcome, ${result.data.user.username}!"
+                        )
+                    }
+                    onSuccess()
                 }
                 is ApiResult.Error -> {
                     _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
@@ -349,4 +413,3 @@ class AuthViewModel(
         expiryJob?.cancel()
     }
 }
-

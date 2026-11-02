@@ -37,6 +37,9 @@ fun NavGraph(
                 viewModel = authViewModel,
                 onNavigateToRegister = { navController.navigate(Screen.RegisterEmail.route) },
                 onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) },
+                onNavigateToVerifyCode = { purpose ->
+                    navController.navigate(Screen.VerifyCode.createRoute(purpose))
+                },
                 onLoginSuccess = {
                     chatViewModel.loadConversations()
                     chatViewModel.loadMessages()
@@ -51,6 +54,13 @@ fun NavGraph(
             RegisterEmailScreen(
                 viewModel = authViewModel,
                 onNavigateBack = { navController.popBackStack() },
+                onRegisterSuccess = {
+                    chatViewModel.loadConversations()
+                    chatViewModel.loadMessages()
+                    navController.navigate(Screen.ConversationsList.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onCodeSent = {
                     navController.navigate(Screen.VerifyCode.createRoute("REGISTRATION"))
                 }
@@ -67,7 +77,17 @@ fun NavGraph(
                 purpose = purpose,
                 onNavigateBack = { navController.popBackStack() },
                 onCodeVerified = {
-                    if (purpose == "REGISTRATION") {
+                    if (purpose == "LOGIN") {
+                        authViewModel.passwordlessLogin(
+                            onSuccess = {
+                                chatViewModel.loadConversations()
+                                chatViewModel.loadMessages()
+                                navController.navigate(Screen.ConversationsList.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            }
+                        )
+                    } else if (purpose == "REGISTRATION") {
                         navController.navigate(Screen.CreatePassword.route)
                     } else {
                         navController.navigate(Screen.ForgotPassword.route)

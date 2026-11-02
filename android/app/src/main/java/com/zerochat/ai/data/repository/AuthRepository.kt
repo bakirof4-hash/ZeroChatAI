@@ -105,6 +105,42 @@ class AuthRepository(
             }
         }
 
+    suspend fun googleSignIn(idToken: String): ApiResult<AuthTokenResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = apiService.googleSignIn(GoogleAuthRequest(idToken.trim()))
+                if (res.isSuccessful && res.body() != null) {
+                    val body = res.body()!!
+                    tokenManager.saveAuthTokens(body.accessToken, body.sessionToken)
+                    tokenManager.saveUser(body.user)
+                    ApiResult.Success(body)
+                } else {
+                    ApiResult.Error(parseError(res), res.code())
+                }
+            } catch (e: Exception) {
+                ApiResult.Error(ApiClient.formatNetworkError(e))
+            }
+        }
+
+    suspend fun passwordlessLogin(email: String, verificationToken: String): ApiResult<AuthTokenResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                val res = apiService.passwordlessLogin(
+                    PasswordlessLoginRequest(email.trim(), verificationToken)
+                )
+                if (res.isSuccessful && res.body() != null) {
+                    val body = res.body()!!
+                    tokenManager.saveAuthTokens(body.accessToken, body.sessionToken)
+                    tokenManager.saveUser(body.user)
+                    ApiResult.Success(body)
+                } else {
+                    ApiResult.Error(parseError(res), res.code())
+                }
+            } catch (e: Exception) {
+                ApiResult.Error(ApiClient.formatNetworkError(e))
+            }
+        }
+
     suspend fun confirmPasswordReset(
         verificationToken: String,
         email: String,

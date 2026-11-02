@@ -33,6 +33,16 @@ interface ZeroChatApiService {
         @Body request: LoginRequest
     ): Response<AuthTokenResponse>
 
+    @POST("api/v1/auth/google")
+    suspend fun googleSignIn(
+        @Body request: GoogleAuthRequest
+    ): Response<AuthTokenResponse>
+
+    @POST("api/v1/auth/passwordless-login")
+    suspend fun passwordlessLogin(
+        @Body request: PasswordlessLoginRequest
+    ): Response<AuthTokenResponse>
+
     @POST("api/v1/auth/password-reset/confirm")
     suspend fun confirmPasswordReset(
         @Body request: PasswordResetRequest

@@ -128,11 +128,21 @@ fun ProfileScreen(
                 }
             }
 
+            if (!user?.fullName.isNullOrBlank()) {
+                Text(
+                    text = user!!.fullName!!,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+
             Text(
                 text = user?.email ?: "",
                 color = TextSecondary,
                 fontSize = 14.sp,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
 
             Spacer(modifier = Modifier.height(24.dp))

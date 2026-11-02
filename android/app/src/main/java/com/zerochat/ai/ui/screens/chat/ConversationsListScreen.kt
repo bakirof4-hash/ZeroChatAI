@@ -640,3 +640,4 @@ private fun formatTimestamp(isoString: String?): String {
         ""
     }
 }
+

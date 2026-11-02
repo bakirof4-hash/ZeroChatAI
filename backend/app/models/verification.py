@@ -7,6 +7,7 @@ from app.db.base import Base
 class CodePurpose(str, Enum):
     REGISTRATION = "REGISTRATION"
     PASSWORD_RESET = "PASSWORD_RESET"
+    LOGIN = "LOGIN"
 
 
 class VerificationCode(Base):
