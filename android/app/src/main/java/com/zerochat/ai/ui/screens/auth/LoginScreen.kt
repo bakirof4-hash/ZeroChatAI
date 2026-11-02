@@ -67,10 +67,6 @@ fun LoginScreen(
     val isPlayServicesAvailable = remember { GoogleAuthManager.isGooglePlayServicesAvailable(context) }
 
     // Legacy fallback client for devices where Credential Manager is unsupported or fails
-    val legacyGoogleSignInClient = remember {
-        GoogleAuthManager.createLegacyGoogleSignInClient(context, BuildConfig.GOOGLE_WEB_CLIENT_ID)
-    }
-
     // Google Sign-In Activity Result Launcher (Legacy Fallback)
     val legacyGoogleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -84,13 +80,14 @@ fun LoginScreen(
                     viewModel.signInWithGoogle(idToken, onSuccess = onLoginSuccess)
                 } else {
                     viewModel.setErrorMessage(
-                        "Google did not provide an ID token. Please verify GOOGLE_WEB_CLIENT_ID in Google Cloud Console."
+                        "Google ID token qaytarmadi. Iltimos, Google Cloud / Firebase'da Web Client ID sozlamasini tekshiring."
                     )
                 }
             } catch (e: ApiException) {
                 // 12501: User cancelled
                 if (e.statusCode != 12501) {
-                    viewModel.setErrorMessage("Google Sign-In failed (${e.statusCode}): ${e.message}")
+                    val detailedMsg = GoogleAuthManager.getErrorMessageForStatusCode(e.statusCode, e.message)
+                    viewModel.setErrorMessage(detailedMsg)
                 }
             } catch (e: Exception) {
                 viewModel.setErrorMessage("Sign-In error: ${e.localizedMessage}")
@@ -101,20 +98,29 @@ fun LoginScreen(
     // Unified launcher: Modern Credential Manager with automatic legacy fallback
     val startGoogleSignIn: () -> Unit = {
         viewModel.clearMessages()
-        coroutineScope.launch {
-            GoogleAuthManager.signInWithCredentialManager(
-                context = context,
-                webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID,
-                onTokenReceived = { idToken ->
-                    viewModel.signInWithGoogle(idToken, onSuccess = onLoginSuccess)
-                },
-                onError = { err ->
-                    viewModel.setErrorMessage(err)
-                },
-                onFallbackToLegacy = {
-                    legacyGoogleSignInLauncher.launch(legacyGoogleSignInClient.signInIntent)
-                }
+        val webClientId = GoogleAuthManager.resolveWebClientId(context)
+        if (webClientId.isBlank()) {
+            viewModel.setErrorMessage(
+                "Google Sign-In sozlanmagan: Web Client ID kiritilmagan.\n" +
+                "Iltimos, server sozlamalari orqali yoki local.properties faylida GOOGLE_WEB_CLIENT_ID ni ko'rsating."
             )
+        } else {
+            coroutineScope.launch {
+                GoogleAuthManager.signInWithCredentialManager(
+                    context = context,
+                    webClientId = webClientId,
+                    onTokenReceived = { idToken ->
+                        viewModel.signInWithGoogle(idToken, onSuccess = onLoginSuccess)
+                    },
+                    onError = { err ->
+                        viewModel.setErrorMessage(err)
+                    },
+                    onFallbackToLegacy = {
+                        val client = GoogleAuthManager.createLegacyGoogleSignInClient(context, webClientId)
+                        legacyGoogleSignInLauncher.launch(client.signInIntent)
+                    }
+                )
+            }
         }
     }
 

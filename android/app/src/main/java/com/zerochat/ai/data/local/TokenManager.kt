@@ -32,6 +32,7 @@ class TokenManager(context: Context) {
         private const val KEY_SESSION_TOKEN = "auth_session_token"
         private const val KEY_CACHED_USER = "cached_user_json"
         private const val KEY_SERVER_URL = "custom_server_base_url"
+        private const val KEY_GOOGLE_WEB_CLIENT_ID = "custom_google_web_client_id"
     }
 
     fun saveServerUrl(url: String) {
@@ -42,6 +43,16 @@ class TokenManager(context: Context) {
 
     fun clearServerUrl() {
         prefs.edit().remove(KEY_SERVER_URL).apply()
+    }
+
+    fun saveGoogleWebClientId(clientId: String) {
+        prefs.edit().putString(KEY_GOOGLE_WEB_CLIENT_ID, clientId.trim()).apply()
+    }
+
+    fun getGoogleWebClientId(): String? = prefs.getString(KEY_GOOGLE_WEB_CLIENT_ID, null)
+
+    fun clearGoogleWebClientId() {
+        prefs.edit().remove(KEY_GOOGLE_WEB_CLIENT_ID).apply()
     }
 
     fun saveAuthTokens(accessToken: String, sessionToken: String) {

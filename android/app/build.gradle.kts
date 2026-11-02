@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -29,17 +31,29 @@ android {
         }
     }
 
+    val localProperties = Properties().apply {
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { load(it) }
+        }
+    }
+
     // Resolve backend base URLs from Gradle properties (-Pzerochat.backend.url),
-    // environment variables (ZEROCHAT_BACKEND_URL), or production HTTPS default.
+    // local.properties, environment variables (ZEROCHAT_BACKEND_URL), or production HTTPS default.
     val prodBackendUrl = (project.findProperty("zerochat.backend.url") as? String)
+        ?: localProperties.getProperty("zerochat.backend.url")
         ?: System.getenv("ZEROCHAT_BACKEND_URL")
         ?: "https://zerochatai-1.onrender.com/"
 
     val emulatorBackendUrl = (project.findProperty("zerochat.emulator.url") as? String)
+        ?: localProperties.getProperty("zerochat.emulator.url")
         ?: System.getenv("ZEROCHAT_EMULATOR_URL")
         ?: "http://10.0.2.2:8000/"
 
     val googleWebClientId = (project.findProperty("zerochat.google.client.id") as? String)
+        ?: (project.findProperty("google.web.client.id") as? String)
+        ?: localProperties.getProperty("GOOGLE_WEB_CLIENT_ID")
+        ?: localProperties.getProperty("google.web.client.id")
         ?: System.getenv("GOOGLE_WEB_CLIENT_ID")
         ?: ""
 
@@ -57,7 +71,8 @@ android {
             )
         }
         debug {
-            applicationIdSuffix = ".debug"
+            // Note: applicationIdSuffix is intentionally omitted so both debug and release
+            // share 'com.zerochat.ai', matching Google Cloud Console / Firebase OAuth clients.
             isDebuggable = true
             // Debug build defaults to production HTTPS (or custom build-time override)
             // It NEVER hardcodes 10.0.2.2 for physical Android devices!

@@ -15,9 +15,28 @@ import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
+import com.zerochat.ai.BuildConfig
+import com.zerochat.ai.data.local.TokenManager
+
 object GoogleAuthManager {
 
     private const val TAG = "ZeroChat.GoogleAuth"
+
+    const val APPLICATION_PACKAGE_NAME = "com.zerochat.ai"
+    const val KNOWN_SHA1_FINGERPRINT = "B5:72:A3:FD:10:F6:5B:A0:60:B3:AD:8F:D4:0E:D8:07:D6:89:FA:F7"
+
+    /**
+     * Resolves the Web Client ID for Google OAuth.
+     * Prioritizes runtime user/developer override from TokenManager (via ServerConfigDialog),
+     * followed by build-time BuildConfig.GOOGLE_WEB_CLIENT_ID.
+     */
+    fun resolveWebClientId(context: Context): String {
+        val runtimeCustom = TokenManager(context).getGoogleWebClientId()
+        if (!runtimeCustom.isNullOrBlank()) {
+            return runtimeCustom.trim()
+        }
+        return BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+    }
 
     /**
      * Checks if Google Play Services is available on the current device.
@@ -28,6 +47,24 @@ object GoogleAuthManager {
         val availability = GoogleApiAvailability.getInstance()
         val resultCode = availability.isGooglePlayServicesAvailable(context)
         return resultCode == ConnectionResult.SUCCESS
+    }
+
+    /**
+     * Formats Google Sign-In ApiException error codes with actionable troubleshooting messages.
+     */
+    fun getErrorMessageForStatusCode(statusCode: Int, rawMessage: String?): String {
+        return when (statusCode) {
+            10 -> { // CommonStatusCodes.DEVELOPER_ERROR
+                "Google Sign-In failed (10: DEVELOPER_ERROR).\n\n" +
+                "Kerakli sozlamalar tekshiruvi:\n" +
+                "1. Google Cloud / Firebase Android Client package name: 'com.zerochat.ai'\n" +
+                "2. Signing Certificate SHA-1: B5:72:A3:FD:10:F6:5B:A0:60:B3:AD:8F:D4:0E:D8:07:D6:89:FA:F7\n" +
+                "3. Ilovaga 'Web application' Client ID berilishi shart (Android Client ID emas)."
+            }
+            7 -> "Tarmoq xatosi (7: NETWORK_ERROR). Internet aloqasini tekshiring."
+            12500 -> "Google hisobi xatosi (12500: SIGN_IN_FAILED). Play Services versiyasini yangilang."
+            else -> "Google Sign-In failed ($statusCode): ${rawMessage ?: "Noma'lum xatolik"}"
+        }
     }
 
     /**
@@ -51,9 +88,13 @@ object GoogleAuthManager {
             return
         }
 
-        if (webClientId.isBlank()) {
-            Log.w(TAG, "Web Client ID is empty. Falling back to legacy Google Sign-In.")
-            onFallbackToLegacy()
+        val effectiveClientId = webClientId.ifBlank { resolveWebClientId(context) }
+        if (effectiveClientId.isBlank()) {
+            Log.w(TAG, "Web Client ID is empty.")
+            onError(
+                "Google Sign-In sozlanmagan: Web Client ID kiritilmagan.\n" +
+                "Server sozlamalarida yoki local.properties faylida GOOGLE_WEB_CLIENT_ID ni ko'rsating."
+            )
             return
         }
 
@@ -62,7 +103,7 @@ object GoogleAuthManager {
         val googleIdOption = try {
             GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(webClientId)
+                .setServerClientId(effectiveClientId)
                 .setAutoSelectEnabled(false)
                 .build()
         } catch (e: Exception) {
@@ -109,15 +150,17 @@ object GoogleAuthManager {
     /**
      * Builds standard GoogleSignInClient for legacy fallback or older devices/custom ROMs.
      */
-    fun createLegacyGoogleSignInClient(context: Context, webClientId: String): GoogleSignInClient {
+    fun createLegacyGoogleSignInClient(context: Context, webClientId: String? = null): GoogleSignInClient {
+        val effectiveClientId = if (!webClientId.isNullOrBlank()) webClientId else resolveWebClientId(context)
         val gsoBuilder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestProfile()
 
-        if (webClientId.isNotBlank()) {
-            gsoBuilder.requestIdToken(webClientId)
+        if (effectiveClientId.isNotBlank()) {
+            gsoBuilder.requestIdToken(effectiveClientId)
         }
 
         return GoogleSignIn.getClient(context, gsoBuilder.build())
     }
 }
+

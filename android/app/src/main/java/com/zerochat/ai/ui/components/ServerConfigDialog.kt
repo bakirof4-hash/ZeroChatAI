@@ -31,7 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.zerochat.ai.BuildConfig
 import com.zerochat.ai.data.api.ApiClient
+import com.zerochat.ai.data.local.TokenManager
+import com.zerochat.ai.util.GoogleAuthManager
 import com.zerochat.ai.ui.theme.*
 
 @Composable
@@ -40,8 +43,12 @@ fun ServerConfigDialog(
     onUrlUpdated: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val tokenManager = remember { TokenManager(context) }
     var currentUrl by remember { mutableStateOf(ApiClient.getBaseUrl()) }
     var inputUrl by remember { mutableStateOf(ApiClient.getBaseUrl()) }
+    var inputGoogleClientId by remember {
+        mutableStateOf(tokenManager.getGoogleWebClientId() ?: BuildConfig.GOOGLE_WEB_CLIENT_ID)
+    }
     var warningMessage by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     val isEmulator = remember { ApiClient.isEmulator() }
@@ -217,6 +224,49 @@ fun ServerConfigDialog(
                     errorMessage = warningMessage
                 )
 
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Google OAuth Configuration
+                Text(
+                    text = "Google OAuth Settings:",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                NeonTextField(
+                    value = inputGoogleClientId,
+                    onValueChange = { inputGoogleClientId = it },
+                    label = "Google Web Client ID",
+                    placeholder = "xxx.apps.googleusercontent.com",
+                    leadingIcon = Icons.Default.Dns
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF0F172A))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "OAuth Package: ${GoogleAuthManager.APPLICATION_PACKAGE_NAME}",
+                        color = NeonBlue,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Signing SHA-1: ${GoogleAuthManager.KNOWN_SHA1_FINGERPRINT}",
+                        color = TextSecondary,
+                        fontSize = 10.sp
+                    )
+                }
+
                 if (successMessage != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -239,8 +289,10 @@ fun ServerConfigDialog(
                             val defaultUrl = ApiClient.resetToDefault(context)
                             inputUrl = defaultUrl
                             currentUrl = defaultUrl
+                            tokenManager.clearGoogleWebClientId()
+                            inputGoogleClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
                             warningMessage = null
-                            successMessage = "Reset to default: $defaultUrl"
+                            successMessage = "Reset to defaults"
                             onUrlUpdated(defaultUrl)
                         },
                         modifier = Modifier.weight(0.4f),
@@ -257,7 +309,12 @@ fun ServerConfigDialog(
                             }
                             ApiClient.setBaseUrl(inputUrl, context)
                             currentUrl = ApiClient.getBaseUrl()
-                            successMessage = "Backend URL set to $currentUrl"
+                            if (inputGoogleClientId.isNotBlank()) {
+                                tokenManager.saveGoogleWebClientId(inputGoogleClientId)
+                            } else {
+                                tokenManager.clearGoogleWebClientId()
+                            }
+                            successMessage = "Settings saved successfully"
                             onUrlUpdated(currentUrl)
                             onDismiss()
                         },
